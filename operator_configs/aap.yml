@@ -26,3 +26,20 @@ spec:
   name: ansible-automation-platform-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
+---
+apiVersion: aap.ansible.com/v1alpha1
+kind: AnsibleAutomationPlatform
+metadata:
+  name: aap-25
+  namespace: aap-25
+spec:
+  route_tls_termination_mechanism: Edge
+  no_log: true
+  redis_mode: standalone
+  api:
+    log_level: INFO
+    replicas: 1
+  database:
+    postgres_data_volume_init: false
+    idle_disabled: false
+  ingress_type: Route
