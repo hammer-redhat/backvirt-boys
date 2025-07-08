@@ -1,0 +1,56 @@
+---
+apiVersion: rhdh.redhat.com/v1alpha3
+kind: Backstage
+metadata:
+  labels:
+    app.kubernetes.io/name: backstage
+  name: developer-hub
+  namespace: rhdh-operator
+spec:
+  application:
+    appConfig:
+      configMaps:
+      - name: app-config-rhdh
+      mountPath: /opt/app-root/src
+    dynamicPluginsConfigMapName: dynamic-plugins-rhdh
+    extraEnvs:
+      secrets:
+      - name: app-secrets-rhdh
+    extraFiles:
+      mountPath: /opt/app-root/src
+    replicas: 1
+    route:
+      enabled: true
+  database:
+    enableLocalDb: true
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: app-config-rhdh
+  namespace: rhdh-operator
+data:
+  app-config-rhdh.yaml: |
+    developerHub:
+      flavor: rhdh
+    app:
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+    backend:
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+    auth:
+      environment: development
+      providers:
+        guest:
+          dangerouslyAllowOutsideDevelopment: true
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dynamic-plugins-rhdh
+  namespace: backstage
+data:
+  dynamic-plugins.yaml: |
+    includes:
+      - dynamic-plugins.default.yaml
+    plugins: []
+...
