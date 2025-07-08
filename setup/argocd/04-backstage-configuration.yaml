@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: backstage
   name: developer-hub
-  namespace: rhdh-operator
+  namespace: developerhub
 spec:
   application:
     appConfig:
@@ -28,7 +28,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: app-config-rhdh
-  namespace: rhdh-operator
+  namespace: developerhub
 data:
   app-config-rhdh.yaml: |
     developerHub:
@@ -47,7 +47,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: dynamic-plugins-rhdh
-  namespace: backstage
+  namespace: developerhub
 data:
   dynamic-plugins.yaml: |
     includes:
