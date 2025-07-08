@@ -1,0 +1,28 @@
+---
+- name: Create an S3 bucket
+  hosts: localhost
+  gather_facts: false
+  vars:
+    bucket_name: ansible-s3-bucket
+    region: us-east-2
+  tasks:
+    - name: Create the S3 bucket
+      amazon.aws.s3_bucket:
+        name: "{{ bucket_name }}"
+        state: present
+        region: "{{ region }}"
+        # Optional: Add tags
+        tags:
+          Name: "{{ bucket_name }}"
+          Environment: dev
+      register: s3_bucket_result
+
+    - name: Print bucket creation result
+      debug:
+        msg: "S3 bucket created: {{ s3_bucket_result.bucket_name }}"
+      when: s3_bucket_result.changed
+
+    - name: Print bucket creation error
+      debug:
+        msg: "Error creating S3 bucket: {{ s3_bucket_result.msg }}"
+      when: not s3_bucket_result.changed and s3_bucket_result.failed
