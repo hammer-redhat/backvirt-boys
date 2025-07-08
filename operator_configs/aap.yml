@@ -4,22 +4,22 @@ kind: Namespace
 metadata:
   labels:
     openshift.io/cluster-monitoring: "true"
-  name: aap-24
+  name: aap-25
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: ansible-automation-platform-operator
-  namespace: aap-24
+  namespace: aap-25
 spec:
   targetNamespaces:
-    - aap-24
+    - aap-25
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: ansible-automation-platform
-  namespace: aap-24
+  namespace: aap-25
 spec:
   channel: 'stable-2.5'
   installPlanApproval: Automatic
