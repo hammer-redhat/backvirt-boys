@@ -53,4 +53,11 @@ data:
     includes:
       - dynamic-plugins.default.yaml
     plugins: []
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets-rhdh
+  namespace: developerhub
+type: Opaque
 ...
