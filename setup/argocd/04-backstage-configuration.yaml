@@ -31,12 +31,10 @@ metadata:
   namespace: developerhub
 data:
   app-config-rhdh.yaml: |
-    developerHub:
-      flavor: rhdh
     app:
-      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+      baseUrl: https://backstage-developer-hub-developerhub.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
     backend:
-      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+      baseUrl: https://backstage-developer-hub-developerhub.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
     auth:
       environment: development
       providers:
