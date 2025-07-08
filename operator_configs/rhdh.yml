@@ -21,7 +21,7 @@ metadata:
   name: devhub
   namespace: devhub
 spec:
-  channel: 'sfast'
+  channel: 'fast'
   installPlanApproval: Automatic
   name: rhdh
   source: redhat-operators
