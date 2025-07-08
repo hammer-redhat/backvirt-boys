@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backstage
+  namespace: openshift-gitops
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    directory:
+      jsonnet:
+        tlas:
+        - name: ""
+          value: ""
+    path: setup/argocd
+    repoURL: https://github.com/hammer-redhat/backvirt-boys
+    targetRevision: jason-devel
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
