@@ -2,11 +2,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: efs
+  name: nfs
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: efs
+    namespace: nfs
     server: https://kubernetes.default.svc
   project: default
   source:
@@ -15,7 +15,7 @@ spec:
         tlas:
         - name: ""
           value: ""
-    path: setup/argocd/efs
+    path: setup/argocd/nfs
     repoURL: https://github.com/hammer-redhat/backvirt-boys
     targetRevision: jason-devel
   syncPolicy:
