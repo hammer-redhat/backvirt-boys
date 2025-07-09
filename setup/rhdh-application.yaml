@@ -2,11 +2,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: backstage
+  name: rhdh
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: developerhub
+    namespace: rhdh-operator
     server: https://kubernetes.default.svc
   project: default
   source:
@@ -15,7 +15,7 @@ spec:
         tlas:
         - name: ""
           value: ""
-    path: setup/argocd/backstage
+    path: setup/argocd/rhdh
     repoURL: https://github.com/hammer-redhat/backvirt-boys
     targetRevision: jason-devel
   syncPolicy:
@@ -29,7 +29,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: secrets-admin
-  namespace: developerhub
+  namespace: rhdh-operator
 rules:
   - apiGroups:
       - ''
@@ -41,8 +41,8 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: gitops-backstage-secrets-admin
-  namespace: developerhub
+  name: gitops-rhdh-secrets-admin
+  namespace: rhdh-operator
 subjects:
   - kind: ServiceAccount
     name: openshift-gitops-argocd-application-controller
@@ -55,11 +55,11 @@ roleRef:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: gitops-backstage-binding
+  name: gitops-rhdh-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rhdh-backstage-editor-role
+  name: rhdh-rhdh-editor-role
 subjects:
 - kind: ServiceAccount
   name: openshift-gitops-argocd-application-controller
