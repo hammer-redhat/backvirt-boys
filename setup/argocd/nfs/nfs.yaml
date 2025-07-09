@@ -6,6 +6,8 @@ metadata:
     app.kubernetes.io/instance: nfs
   name: nfs-operator
   namespace: nfs
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  
 spec:
   targetNamespaces:
   - nfs
@@ -16,6 +18,8 @@ kind: Subscription
 metadata:
   labels:
     operators.coreos.com/nfs-provisioner-operator.openshift-operators: ''
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  
   name: nfs-provisioner-operator
   namespace: openshift-operators
 spec:
@@ -30,6 +34,8 @@ kind: NFSProvisioner
 metadata:
   name: nfsprovisioner-sample
   namespace: nfs
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   nfsImageConfiguration:
     image: 'k8s.gcr.io/sig-storage/nfs-provisioner@sha256:e943bb77c7df05ebdc8c7888b2db289b13bf9f012d6a3a5a74f14d4d5743d439'
