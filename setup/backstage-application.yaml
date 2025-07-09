@@ -15,7 +15,7 @@ spec:
         tlas:
         - name: ""
           value: ""
-    path: setup/argocd
+    path: setup/argocd/backstage
     repoURL: https://github.com/hammer-redhat/backvirt-boys
     targetRevision: jason-devel
   syncPolicy:
