@@ -2,11 +2,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: backstage
+  name: aap
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: developerhub
+    namespace: aap
     server: https://kubernetes.default.svc
   project: default
   source:
@@ -15,7 +15,7 @@ spec:
         tlas:
         - name: ""
           value: ""
-    path: setup/argocd
+    path: setup/argocd/aap
     repoURL: https://github.com/hammer-redhat/backvirt-boys
     targetRevision: jason-devel
   syncPolicy:
@@ -28,21 +28,21 @@ spec:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: secrets-admin
-  namespace: developerhub
+  name: aap-admin
+  namespace: aap
 rules:
   - apiGroups:
-      - ''
+      - 'aap.ansible.com'
     resources:
-      - secrets
+      - 'ansibleautomationplatforms'
     verbs:
       - '*'
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: gitops-backstage-secrets-admin
-  namespace: developerhub
+  name: gitops-aap-admin
+  namespace: aap
 subjects:
   - kind: ServiceAccount
     name: openshift-gitops-argocd-application-controller
@@ -50,18 +50,5 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: secrets-admin
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: gitops-backstage-binding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rhdh-backstage-editor-role
-subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-application-controller
-  namespace: openshift-gitops
+  name: aap-admin
 ...
