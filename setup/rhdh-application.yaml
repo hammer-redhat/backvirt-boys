@@ -1,6 +1,6 @@
 ---
-apiVersion: project.openshift.io/v1
-kind: Project
+apiVersion: v1
+kind: Namespace
 metadata:
   name: rhdh-operator
 spec:
