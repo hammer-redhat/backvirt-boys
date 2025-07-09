@@ -59,7 +59,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rhdh-rhdh-editor-role
+  name: rhdh-backstage-editor-role
 subjects:
 - kind: ServiceAccount
   name: openshift-gitops-argocd-application-controller
