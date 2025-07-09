@@ -1,0 +1,27 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: efs
+  namespace: openshift-gitops
+spec:
+  destination:
+    namespace: efs
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    directory:
+      jsonnet:
+        tlas:
+        - name: ""
+          value: ""
+    path: setup/argocd/efs
+    repoURL: https://github.com/hammer-redhat/backvirt-boys
+    targetRevision: jason-devel
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+...

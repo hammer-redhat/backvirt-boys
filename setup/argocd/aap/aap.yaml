@@ -26,5 +26,7 @@ spec:
   database:
     postgres_data_volume_init: false
     idle_disabled: false
+  hub:
+    file_storage_storage_class: efs-sc
   ingress_type: Route
 ...
