@@ -1,12 +1,20 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ansilbe-automation-platform
+spec:
+  finalizers:
+  - kubernetes
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: aap
+  name: ansible-automation-platform
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: aap
+    namespace: ansible-automation-platform
     server: https://kubernetes.default.svc
   project: default
   source:
@@ -22,14 +30,12 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-    - CreateNamespace=true
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: aap-admin
-  namespace: aap
+  name: ansible-automation-platform-admin
+  namespace: ansible-automation-platform
 rules:
   - apiGroups:
       - 'aap.ansible.com'
@@ -42,7 +48,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: gitops-aap-admin
-  namespace: aap
+  namespace: ansible-automation-platform
 subjects:
   - kind: ServiceAccount
     name: openshift-gitops-argocd-application-controller
@@ -50,5 +56,5 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: aap-admin
+  name: ansible-automation-platform-admin
 ...
