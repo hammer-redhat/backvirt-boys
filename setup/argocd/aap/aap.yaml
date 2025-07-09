@@ -4,8 +4,10 @@ kind: Subscription
 metadata:
   name: ansible-automation-platform
   namespace: aap
+  labels:
+    operators.coreos.com/ansible-automation-platform-operator.aap: ""  
 spec:
-  channel: 'stable-2.5'
+  channel: stable-2.5
   installPlanApproval: Automatic
   name: ansible-automation-platform-operator
   source: redhat-operators
