@@ -14,12 +14,13 @@ metadata:
 spec:
   targetNamespaces:
     - ansible-automation-platform
+    - aap
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: ansible-automation-platform
-  namespace: ansible-automation-platform
+  namespace: aap
 spec:
   channel: stable-2.5-cluster-scoped
   installPlanApproval: Automatic
@@ -31,7 +32,7 @@ apiVersion: aap.ansible.com/v1alpha1
 kind: AnsibleAutomationPlatform
 metadata:
   name: aap
-  namespace: ansible-automation-platform
+  namespace: aap
 spec:
   route_tls_termination_mechanism: Edge
   no_log: true
