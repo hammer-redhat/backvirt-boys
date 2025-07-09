@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: backstage
   name: developer-hub
-  namespace: developerhub
+  namespace: rhdh-operator
 spec:
   application:
     appConfig:
@@ -28,13 +28,13 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: app-config-rhdh
-  namespace: developerhub
+  namespace: rhdh-operator
 data:
   app-config-rhdh.yaml: |
     app:
-      baseUrl: https://backstage-developer-hub-developerhub.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
     backend:
-      baseUrl: https://backstage-developer-hub-developerhub.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
     auth:
       environment: development
       providers:
@@ -51,7 +51,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: dynamic-plugins-rhdh
-  namespace: developerhub
+  namespace: rhdh-operator
 data:
   dynamic-plugins.yaml: |
     includes:
@@ -62,6 +62,6 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: app-secrets-rhdh
-  namespace: developerhub
+  namespace: rhdh-operator
 type: Opaque
 ...
