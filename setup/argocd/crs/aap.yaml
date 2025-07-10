@@ -17,4 +17,44 @@ spec:
   hub:
     file_storage_storage_class: nfs
   ingress_type: Route
-...
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: loadsubscription
+  namespace: ansible-automation-platform
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    metadata:
+      name: loadsubscription
+    spec:
+      volumes:
+        - name: manifestpayload
+          configMap:
+            name: manifestpayload
+            defaultMode: 420
+      containers:
+        - resources: {}
+          name: loadsubscription
+          command:
+            - curl
+            - -u
+            - "admin:$(aap_controller_admin_password)"
+            - -H
+            - "Content-Type: application/json"
+            - "http://aap-controller-service/api/v2/config/"
+            - -d
+            - "@/mnt/subscription/manifest_payload.json"
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: manifestpayload
+              mountPath: /mnt/subscription
+          envFrom:
+            - prefix: aap_controller_admin_
+              secretRef:
+                name: aap-controller-admin-password
+          image: curlimages/curl
+      restartPolicy: OnFailure...
