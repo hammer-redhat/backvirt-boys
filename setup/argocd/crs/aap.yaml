@@ -21,7 +21,7 @@ spec:
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: loadsubscription
+  generateName: loadsubscription-
   namespace: ansible-automation-platform
   annotations:
     argocd.argoproj.io/hook: PostSync
