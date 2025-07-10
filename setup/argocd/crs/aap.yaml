@@ -61,4 +61,5 @@ spec:
               secretRef:
                 name: aap-controller-admin-password
           image: curlimages/curl
-      restartPolicy: OnFailure...
+      restartPolicy: OnFailure
+...
