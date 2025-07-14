@@ -46,32 +46,32 @@ metadata:
   namespace: rhdh-operator
 data:
   app-config-rhdh.yaml: |
-    ansible:
-      automationHub:
-        baseUrl: https://aap-hub-ansible-automation-platform.apps.ms01.k8socp.com/
-      creatorService:
-        baseUrl: 127.0.0.1
-        port: '8000'
-      devSpaces:
-        baseUrl: https://devspaces.apps.ms01.k8socp.com/
-      rhaap:
-        baseUrl: https://aap-controller-ansible-automation-platform.apps.ms01.k8socp.com
-        token: '1AnGGghfXNzTSDedu8G9jAKe6o5jNh'
-        checkSSL: true
+#    ansible:
+#      automationHub:
+#        baseUrl: https://aap-hub-ansible-automation-platform.apps.ms01.k8socp.com/
+#      creatorService:
+#        baseUrl: 127.0.0.1
+#        port: '8000'
+#      devSpaces:
+#        baseUrl: https://devspaces.apps.ms01.k8socp.com/
+#      rhaap:
+#        baseUrl: https://aap-controller-ansible-automation-platform.apps.ms01.k8socp.com
+#        token: '1AnGGghfXNzTSDedu8G9jAKe6o5jNh'
+#        checkSSL: true
     app:
-      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.ms01.k8socp.com/
     backend:
-      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.ms01.k8socp.com/
     auth:
       environment: development
       providers:
         guest:
           dangerouslyAllowOutsideDevelopment: true
-    catalog:
-      locations:
-        - type: url
-          target: https://github.com/ansible/ansible-rhdh-templates/blob/main/all.yaml
-          rules: []
+#    catalog:
+#      locations:
+#        - type: url
+#          target: https://github.com/ansible/ansible-rhdh-templates/blob/main/all.yaml
+#          rules:
 #            - allow: [Template]          
 ---
 kind: ConfigMap
@@ -83,38 +83,39 @@ data:
   dynamic-plugins.yaml: |
     includes:
       - dynamic-plugins.default.yaml
-    plugins:
-      - disabled: false
-        package: 'http://plugin-registry:8080/ansible-plugin-backstage-rhaap-dynamic-1.5.0.tgz'
-        integrity: sha512-P8oaUfwnm0Yh0bEgQSYdCfw6fubGc32EcT3u1ZjXxBNMLMFe/BTlyTCNYkqmB3P7jbI5uyypJ0n4oFLqmbNqpQ==
-        pluginConfig:
-          dynamicPlugins:
-            frontend:
-              ansible.plugin-backstage-rhaap:
-                appIcons:
-                  - importName: AnsibleLogo
-                    name: AnsibleLogo
-                dynamicRoutes:
-                  - importName: AnsiblePage
-                    menuItem:
-                      icon: AnsibleLogo
-                      text: Ansible
-                    path: /ansible
-      - disabled: false
-        package: http://plugin-registry:8080/ansible-plugin-backstage-rhaap-backend-dynamic-1.5.0.tgz
-        integrity: sha512-pEhbMrVpwFhYJv94cTuskulWsmH5krFXTuGj1sDFOye+Rnes7D6VADVEAHPcwfMsX2Izan/CcoqxNrbzt61Y9A==
-        pluginConfig:
-          dynamicPlugins:
-            backend:
-              ansible.plugin-backstage-rhaap-backend: null
-      - disabled: false
-        package: http://plugin-registry:8080/ansible-plugin-scaffolder-backend-module-backstage-rhaap-dynamic-1.5.0.tgz
-        integrity: sha512-PMLit2Wm9GeHP46pcdYkPs2PG4/z39+hPTBSawIiURyow+Ks4/efsCsSg1IuOLDlHE0lF+FZoQl+YcfTVE2PDA==
-        pluginConfig:
-          dynamicPlugins:
-            backend:
-              ansible.plugin-scaffolder-backend-module-backstage-rhaap: null
----
+    plugins: []
+#    plugins:
+#      - disabled: false
+#        package: 'http://plugin-registry:8080/ansible-plugin-backstage-rhaap-dynamic-1.5.0.tgz'
+#        integrity: sha512-P8oaUfwnm0Yh0bEgQSYdCfw6fubGc32EcT3u1ZjXxBNMLMFe/BTlyTCNYkqmB3P7jbI5uyypJ0n4oFLqmbNqpQ==
+#        pluginConfig:
+#          dynamicPlugins:
+#            frontend:
+#              ansible.plugin-backstage-rhaap:
+#                appIcons:
+#                  - importName: AnsibleLogo
+#                    name: AnsibleLogo
+#                dynamicRoutes:
+#                  - importName: AnsiblePage
+#                    menuItem:
+#                      icon: AnsibleLogo
+#                      text: Ansible
+#                    path: /ansible
+#      - disabled: false
+#        package: http://plugin-registry:8080/ansible-plugin-backstage-rhaap-backend-dynamic-1.5.0.tgz
+#        integrity: sha512-pEhbMrVpwFhYJv94cTuskulWsmH5krFXTuGj1sDFOye+Rnes7D6VADVEAHPcwfMsX2Izan/CcoqxNrbzt61Y9A==
+#        pluginConfig:
+#          dynamicPlugins:
+#            backend:
+#              ansible.plugin-backstage-rhaap-backend: null
+#      - disabled: false
+#        package: http://plugin-registry:8080/ansible-plugin-scaffolder-backend-module-backstage-rhaap-dynamic-1.5.0.tgz
+#        integrity: sha512-PMLit2Wm9GeHP46pcdYkPs2PG4/z39+hPTBSawIiURyow+Ks4/efsCsSg1IuOLDlHE0lF+FZoQl+YcfTVE2PDA==
+#        pluginConfig:
+#          dynamicPlugins:
+#            backend:
+#              ansible.plugin-scaffolder-backend-module-backstage-rhaap: null
+#---
 apiVersion: v1
 kind: Secret
 metadata:
