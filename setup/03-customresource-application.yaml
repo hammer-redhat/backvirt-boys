@@ -35,6 +35,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: gitops-aap-jobs-admin
+  namespace: ansible-automation-platform
 subjects:
   - kind: ServiceAccount
     name: openshift-gitops-argocd-application-controller
