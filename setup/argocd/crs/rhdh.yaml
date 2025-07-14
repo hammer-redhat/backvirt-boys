@@ -71,7 +71,37 @@ data:
   dynamic-plugins.yaml: |
     includes:
       - dynamic-plugins.default.yaml
-    plugins: []
+    plugins:
+      - disabled: false
+        package: 'http://plugin-registry:8080/ansible-plugin-backstage-rhaap-dynamic-1.5.0.tgz'
+        integrity: sha512-P8oaUfwnm0Yh0bEgQSYdCfw6fubGc32EcT3u1ZjXxBNMLMFe/BTlyTCNYkqmB3P7jbI5uyypJ0n4oFLqmbNqpQ==
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              ansible.plugin-backstage-rhaap:
+                appIcons:
+                  - importName: AnsibleLogo
+                    name: AnsibleLogo
+                dynamicRoutes:
+                  - importName: AnsiblePage
+                    menuItem:
+                      icon: AnsibleLogo
+                      text: Ansible
+                    path: /ansible
+      - disabled: false
+        package: http://plugin-registry:8080/ansible-plugin-backstage-rhaap-backend-dynamic-1.5.0.tgz
+        integrity: sha512-pEhbMrVpwFhYJv94cTuskulWsmH5krFXTuGj1sDFOye+Rnes7D6VADVEAHPcwfMsX2Izan/CcoqxNrbzt61Y9A==
+        pluginConfig:
+          dynamicPlugins:
+            backend:
+              ansible.plugin-backstage-rhaap-backend: null
+      - disabled: false
+        package: http://plugin-registry:8080/ansible-plugin-scaffolder-backend-module-backstage-rhaap-dynamic-1.5.0.tgz
+        integrity: sha512-PMLit2Wm9GeHP46pcdYkPs2PG4/z39+hPTBSawIiURyow+Ks4/efsCsSg1IuOLDlHE0lF+FZoQl+YcfTVE2PDA==
+        pluginConfig:
+          dynamicPlugins:
+            backend:
+              ansible.plugin-scaffolder-backend-module-backstage-rhaap: null
 ---
 apiVersion: v1
 kind: Secret
