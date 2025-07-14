@@ -165,7 +165,7 @@ spec:
   source:
     path: setup/argocd/operators
     repoURL: https://github.com/hammer-redhat/backvirt-boys
-    targetRevision: jason-devel
+    targetRevision: main
   syncPolicy:
     automated:
       prune: true
