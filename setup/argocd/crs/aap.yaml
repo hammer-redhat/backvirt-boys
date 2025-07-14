@@ -20,6 +20,8 @@ spec:
     disabled: true
   hub:
     file_storage_storage_class: nfs
+    gunicorn_content_workers: 1
+    gunicorn_api_workers: 1
   ingress_type: Route
 ---
 kind: Job
