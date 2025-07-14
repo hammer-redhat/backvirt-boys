@@ -34,8 +34,6 @@ spec:
                 command:
                   - adt
                 image: 'registry.redhat.io/ansible-automation-platform-25/ansible-dev-tools-rhel8:latest'
-                imagePullPolicy: always
-                terminationMessagePolicy: file
                 name: adt-sidecar
                 ports:
                   - containerPort: 8000
