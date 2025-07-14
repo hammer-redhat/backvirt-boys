@@ -26,4 +26,14 @@ spec:
   name: ansible-automation-platform-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: manifestpayload
+  namespace: ansible-automation-platform
+data:
+  manifest_payload.json: |
+    { "manifest": "REDACTED" }
+immutable: false
 ...
