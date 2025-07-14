@@ -46,6 +46,18 @@ metadata:
   namespace: rhdh-operator
 data:
   app-config-rhdh.yaml: |
+    ansible:
+      automationHub:
+        baseUrl: https://aap-hub-ansible-automation-platform.apps.ms01.k8socp.com/
+      creatorService:
+        baseUrl: 127.0.0.1
+        port: '8000'
+      devSpaces:
+        baseUrl: https://devspaces.apps.ms01.k8socp.com/
+      rhaap:
+        baseUrl: https://aap-controller-ansible-automation-platform.apps.ms01.k8socp.com
+        token: '1AnGGghfXNzTSDedu8G9jAKe6o5jNh'
+        checkSSL: true
     app:
       baseUrl: https://backstage-developer-hub-rhdh-operator.apps.rosa.rosa-tlnlq.eunq.p3.openshiftapps.com
     backend:
@@ -55,12 +67,12 @@ data:
       providers:
         guest:
           dangerouslyAllowOutsideDevelopment: true
-    ansible:
-      creatorService:
-        baseUrl: 127.0.0.1
-        port: '5000'
-      devSpacesBaseUrl: >-
-        https://devspaces.dummy.test-tests.testing.check.com/
+    catalog:
+      locations:
+        - type: url
+          target: https://github.com/ansible/ansible-rhdh-templates/blob/main/all.yaml
+          rules: []
+#            - allow: [Template]          
 ---
 kind: ConfigMap
 apiVersion: v1
