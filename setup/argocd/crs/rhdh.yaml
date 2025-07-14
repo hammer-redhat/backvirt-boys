@@ -46,6 +46,15 @@ metadata:
   namespace: rhdh-operator
 data:
   app-config-rhdh.yaml: |
+    app:
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.ms01.k8socp.com/
+    backend:
+      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.ms01.k8socp.com/
+    auth:
+      environment: development
+      providers:
+        guest:
+          dangerouslyAllowOutsideDevelopment: true
 #    ansible:
 #      automationHub:
 #        baseUrl: https://aap-hub-ansible-automation-platform.apps.ms01.k8socp.com/
@@ -58,15 +67,6 @@ data:
 #        baseUrl: https://aap-controller-ansible-automation-platform.apps.ms01.k8socp.com
 #        token: '1AnGGghfXNzTSDedu8G9jAKe6o5jNh'
 #        checkSSL: true
-    app:
-      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.ms01.k8socp.com/
-    backend:
-      baseUrl: https://backstage-developer-hub-rhdh-operator.apps.ms01.k8socp.com/
-    auth:
-      environment: development
-      providers:
-        guest:
-          dangerouslyAllowOutsideDevelopment: true
 #    catalog:
 #      locations:
 #        - type: url
@@ -115,7 +115,7 @@ data:
 #          dynamicPlugins:
 #            backend:
 #              ansible.plugin-scaffolder-backend-module-backstage-rhaap: null
-#---
+---
 apiVersion: v1
 kind: Secret
 metadata:
