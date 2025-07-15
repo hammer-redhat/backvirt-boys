@@ -87,7 +87,8 @@ data:
           users:
             - name: user:development/guest
           superUsers:
-            - name: user:development/guest            
+            - name: user:development/guest
+    signInPage: oidc
 ---
 kind: ConfigMap
 apiVersion: v1
