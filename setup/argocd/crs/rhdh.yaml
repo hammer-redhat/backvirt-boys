@@ -51,10 +51,14 @@ data:
     backend:
       baseUrl: https://backstage-developer-hub-rhdh-operator.apps.ms01.k8socp.com/
     auth:
-      environment: development
+      environment: production
       providers:
-        guest:
-          dangerouslyAllowOutsideDevelopment: true
+        oidc:
+          production:
+            metadataUrl: https://keycloak-rhsso.apps.ms01.k8socp.com/auth/realms/master
+            clientId: client-secret
+            clientSecret: client-secret
+            prompt: auto
     ansible:
       automationHub:
         baseUrl: https://aap-hub-ansible-automation-platform.apps.ms01.k8socp.com/
