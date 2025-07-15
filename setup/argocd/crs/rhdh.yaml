@@ -76,6 +76,14 @@ data:
           target: https://github.com/ansible/ansible-rhdh-templates/blob/main/all.yaml
           rules:
             - allow: [Template]
+    permission:
+      enabled: true
+      rbac:
+        admin:
+          users:
+            - name: user:development/guest
+          superUsers:
+            - name: user:development/guest            
 ---
 kind: ConfigMap
 apiVersion: v1
