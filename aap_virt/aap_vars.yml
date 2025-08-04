@@ -1,0 +1,31 @@
+---
+# AAP Controller Configuration
+# Copy this file and customize with your actual values
+# Usage: ansible-playbook -e @aap_vars.yml create_job_template.yml
+
+# AAP Controller connection details
+aap_controller_host: "https://your-aap-controller.example.com"
+aap_controller_username: "admin"
+# aap_controller_password: "your-password-here"  # Use ansible-vault or environment variable
+aap_controller_verify_ssl: true
+
+# AAP Resources
+aap_project_name: "backvirt-boys"
+aap_inventory_name: "localhost"
+aap_credential_name: "OpenShift Credential"  # Must have OpenShift/Kubernetes access
+
+# Default VM Configuration
+default_vm_config:
+  vm_state: "present"
+  vm_namespace: "default"
+  vm_label: "managed-vm"
+  vm_instancetype: "u1.medium"
+  vm_preference: "fedora"
+
+# Job Template Settings
+job_template_config:
+  name: "Create VM on OpenShift Virtualization"
+  description: "Creates a virtual machine on OpenShift Virtualization using kubevirt"
+  timeout: 900
+  verbosity: 1
+  concurrent_jobs_enabled: true

@@ -1,0 +1,197 @@
+---
+- name: Create Job Template for VM Creation in AAP
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - ansible.controller
+  
+  vars:
+    # AAP Controller connection details
+    controller_host: "{{ aap_controller_host | default('https://aap-aap.apps.cluster-6zrlj.dynamic.redhatworkshops.io/') }}"
+    controller_username: "{{ aap_controller_username | default('admin') }}"
+    controller_password: "{{ aap_controller_password }}"
+    controller_verify_ssl: "{{ aap_controller_verify_ssl | default(false) }}"
+    
+    # Job Template configuration
+    job_template_name: "Create VM on OpenShift Virtualization"
+    job_template_description: "Creates a virtual machine on OpenShift Virtualization using kubevirt"
+    project_name: "{{ aap_project_name | default('backvirt-boys') }}"
+    inventory_name: "{{ aap_inventory_name | default('Demo Inventory') }}"
+    credential_name: "{{ aap_credential_name | default('OpenShift Credential') }}"
+    
+    # VM creation variables with defaults
+    vm_variables:
+      vm_state: present
+      vm_name: "test-vm"
+      vm_namespace: "default"
+      vm_label: "test-vm"
+      vm_instancetype: "u1.medium"
+      vm_preference: "fedora"
+      vm_dv_template: "testdv"
+
+  tasks:
+    - name: Configure SCM project from git to populate playbooks for job templates. 
+      ansible.controller.project:
+        name: "backvirt-boys"
+        organization: "Default"
+        scm_url: https://github.com/hammer-redhat/backvirt-boys.git
+        scm_type: git
+        scm_branch: chrhamme-devel
+        update_project: true
+        state: present
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        
+    - name: Create Job Template for VM Creation
+      ansible.controller.job_template:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "{{ job_template_name }}"
+        job_type: "run"
+        inventory: "{{ inventory_name }}"
+        project: "{{ project_name }}"
+        playbook: "aap_virt/create_vm.yml"
+        # Survey configuration for user input
+        survey_enabled: true
+        survey_spec:
+          name: "VM Creation Parameters"
+          description: "Configure VM creation parameters"
+          spec:
+            - question_name: "VM Name"
+              question_description: "Name for the virtual machine"
+              required: true
+              type: "text"
+              variable: "vm_name"
+              min: 1
+              max: 50
+              default: "my-vm"
+              
+            - question_name: "VM Namespace"
+              question_description: "OpenShift namespace for the VM"
+              required: true
+              type: "text"
+              variable: "vm_namespace"
+              min: 1
+              max: 63
+              default: "default"
+              
+            - question_name: "VM State"
+              question_description: "Desired state of the VM"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_state"
+              choices:
+                - "present"
+                - "absent"
+              default: "present"
+              
+            - question_name: "VM Label"
+              question_description: "Application label for the VM"
+              required: true
+              type: "text"
+              variable: "vm_label"
+              min: 1
+              max: 50
+              default: "my-app"
+              
+            - question_name: "Instance Type"
+              question_description: "VM instance type (size)"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_instancetype"
+              choices:
+                - "u1.micro"
+                - "u1.small"
+                - "u1.medium"
+                - "u1.large"
+                - "u1.xlarge"
+              default: "u1.medium"
+              
+            - question_name: "VM Preference"
+              question_description: "Operating system preference"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_preference"
+              choices:
+                - "fedora"
+                - "rhel8"
+                - "rhel9"
+                - "centos7"
+                - "centos8"
+              default: "fedora"
+              
+            - question_name: "DataVolume Template Name"
+              question_description: "Name for the DataVolume template"
+              required: true
+              type: "text"
+              variable: "vm_dv_template"
+              min: 1
+              max: 50
+              default: "vm-datavolume"
+        
+        # Extra variables with defaults
+        extra_vars: "{{ vm_variables }}"
+        
+        # Job execution settings
+        timeout: 900
+        verbosity: 1
+        concurrent_jobs_enabled: true
+        ask_variables_on_launch: true
+        ask_limit_on_launch: false
+        ask_tags_on_launch: false
+        ask_skip_tags_on_launch: false
+        ask_job_type_on_launch: false
+        ask_verbosity_on_launch: false
+        ask_inventory_on_launch: false
+        ask_credential_on_launch: false
+        ask_scm_branch_on_launch: false
+        ask_diff_mode_on_launch: false
+        
+        # Webhook and notification settings
+        webhook_service: ""
+        webhook_credential: ""
+        
+        state: present
+      register: job_template_result
+      
+    - name: Display Job Template Creation Result
+      ansible.builtin.debug:
+        msg: 
+          - "Job Template '{{ job_template_name }}' created successfully!"
+          - "Template ID: {{ job_template_result.id }}"
+          - "You can now launch this job template from the AAP web interface"
+          - "Or use the ansible.controller.job_launch module to run it programmatically"
+
+    - name: Create a simple inventory if it doesn't exist
+      ansible.controller.inventory:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        
+        name: "{{ inventory_name }}"
+        description: "Localhost inventory for VM creation jobs"
+        organization: "Default"
+        state: present
+      register: inventory_result
+      ignore_errors: true
+      
+    - name: Add localhost to inventory
+      ansible.controller.host:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        
+        name: "localhost"
+        inventory: "{{ inventory_name }}"
+        variables:
+          ansible_connection: local
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"
+        state: present
+      when: inventory_result is succeeded
+      ignore_errors: true
