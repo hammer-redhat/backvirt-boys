@@ -19,15 +19,12 @@
           - metadata:
               name: "{{ vm_name }}"        #testdv
             spec:
-              source:
-                registry:
-                  url: docker://quay.io/containerdisks/fedora:latest
+              sourceRef:
+                kind: DataSource
+                name: "{{ vm_os_version }}"
+                namespace: openshift-virtualization-os-images
               storage:
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: 5Gi
+                resources: {}
         spec:
           domain:
             devices: {}
@@ -38,9 +35,11 @@
             - cloudInitNoCloud:
                 userData: |-
                   #cloud-config
-                  # The default username is: fedora
-                  ssh_authorized_keys:
-                    - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDXjjkVxUP31WeTLT6YvbHKpx7KchFnSAvfuXSqSC/f/tg9YwgNmIEuOzX6j/4ihc6uaU7fq9vaTLW8ezTZKULo7AbBPbDxcJ3BpTzQ+1L6DsgpI+105cqYd2qnX/8WQCg8qZ2CWCQkIq7tIZbpnQ7kKxMseLpWGqkuC7I478K8AzbDvqgseJwQOAx8uDXWds5y/EoyJANeGbENMZkxl0s4rekgoGVmFKhXJuQ3pulRMRKA8JPEANNaP4qQDdRR8CQQwOWofj/i2sNkCo1HB/Lbdxrbi0BEsPf8HzbT0h9yIyYgzPUunpI2gPwKKS4Q2JNs5n/dWct1UWew9T6DP9r68Gna0GVRXCFcvBrnV10uodPXcDeAXboqKEEkjf1pDX0+kWBvT9+qbzLnnCB0cCn0ETX/dlEyIr5CaOccd9bkGlDUa276/Ya16y2f8XrPSRjUb9OrmCxV3omuhTy5xYp9FWbdrvQU8mGeJVGxpKGWBAVan8eHwUx/Hm88uL1WgkE= chrhamme@hammer-rhel-pc
-              name: cloudinit
+                  user: rhel
+                  password: openshift
+                  chpasswd:
+                    expire: false
+                  ssh_pwauth: true
+              name: cloudinitdisk
         wait: true
         wait_timeout: 600
