@@ -2,7 +2,8 @@
 - name: Create a VM on OCP-Virt.
   hosts: localhost
   gather_facts: false
-  tasks: 
+  tasks:
+
     - name: Create a VirtualMachine with a DataVolume template
       redhat.openshift_virtualization.kubevirt_vm:
         state: "{{ vm_state }}"
@@ -32,7 +33,7 @@
             devices: {}
           volumes:
             - dataVolume:
-                name: testdv
+                name: "{{ vm_name }}"
               name: datavolume
             - cloudInitNoCloud:
                 userData: |-
