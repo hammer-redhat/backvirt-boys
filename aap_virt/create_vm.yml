@@ -17,7 +17,7 @@
           name: "{{ vm_preference }}"              #fedora
         data_volume_templates:
           - metadata:
-              name: "{{ vm_dv_template }}"        #testdv
+              name: "{{ vm_name }}"        #testdv
             spec:
               source:
                 registry:
