@@ -2,7 +2,7 @@
 ---
 # patching for vm's on openshift
 - name: Patching vm's
-  hosts: "{{ infra_openshift_virtualization_ops_vm_name | default('all') }}"
+  hosts: all
   become: true
   tasks:
     - name: Calling patching role
