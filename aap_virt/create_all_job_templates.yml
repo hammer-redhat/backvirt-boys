@@ -1,0 +1,480 @@
+---
+- name: Create All Job Templates for VM Operations in AAP
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - ansible.controller
+  
+  vars:
+    # AAP Controller connection details
+    controller_host: "{{ aap_controller_host | default('') }}"
+    controller_username: "{{ aap_controller_username | default('admin') }}"
+    controller_password: "{{ aap_controller_password }}"
+    controller_verify_ssl: "{{ aap_controller_verify_ssl | default(false) }}"
+    
+    # Project and common configuration
+    project_name: "{{ aap_project_name | default('backvirt-boys') }}"
+    inventory_name: "{{ aap_inventory_name | default('Demo Inventory') }}"
+    credential_name: "{{ aap_credential_name | default('OpenShift Credential') }}"
+    organization_name: "{{ aap_organization_name | default('Default') }}"
+    ocp_token: "{{ aap_ocp_token | default('') }}"
+    openshift_api_host: "{{ aap_openshift_api_host | default('') }}"
+    execution_environment_name: "{{ aap_execution_environment_name | default('openshift-virt-ops_ee') }}"
+    execution_environment_image: "{{ aap_execution_environment_image | default('quay.io/chrhamme/openshift-virt-ops_ee:latest') }}"
+
+  tasks:
+    - name: Configure SCM project from git to populate playbooks for job templates
+      ansible.controller.project:
+        name: "{{ project_name }}"
+        organization: "{{ organization_name }}"
+        scm_url: https://github.com/hammer-redhat/backvirt-boys.git
+        scm_type: git
+        scm_branch: chrhamme-devel
+        update_project: true
+        state: present
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        
+    - name: Create execution environment if it doesn't exist
+      ansible.controller.execution_environment:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "{{ execution_environment_name }}"
+        image: "{{ execution_environment_image }}"
+        state: present
+
+    - name: Create inventory if it doesn't exist
+      ansible.controller.inventory:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "{{ inventory_name }}"
+        description: "Localhost inventory for VM operations jobs"
+        organization: "{{ organization_name }}"
+        state: present
+      register: inventory_result
+      
+    - name: Add localhost to inventory
+      ansible.controller.host:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "localhost"
+        inventory: "{{ inventory_name }}"
+        variables:
+          ansible_connection: local
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"
+        state: present
+      when: inventory_result is succeeded
+
+    - name: Create the inventory to sync from OCP Virt.
+      ansible.controller.inventory:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: ocp-virt
+        description: "Inventory for VM operations jobs"
+        organization: "Default"
+        state: present
+    
+    - name: Add an inventory source
+      ansible.controller.inventory_source:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "ocp-virt-source"
+        source: openshift_virtualization
+        overwrite: true
+        organization: "Default"
+        overwrite_vars: true
+        update_on_launch: true
+        validate_certs: "{{ controller_verify_ssl }}"
+        state: present
+        credential: "OpenShift Credential"
+        inventory: "ocp-virt"
+    
+    - name: Update a single inventory source
+      ansible.controller.inventory_source_update:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "ocp-virt-source"
+        inventory: "ocp-virt"
+        organization: "Default"
+
+    # VM Creation Job Template
+    - name: Create Job Template for VM Creation
+      ansible.controller.job_template:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "Create VM on OpenShift Virtualization"
+        description: "Creates a virtual machine on OpenShift Virtualization using kubevirt"
+        job_type: "run"
+        inventory: "{{ inventory_name }}"
+        project: "{{ project_name }}"
+        playbook: "aap_virt/create_vm.yml"
+        credential: "OpenShift Credential"
+        survey_enabled: true
+        survey_spec:
+          name: "VM Creation Parameters"
+          description: "Configure VM creation parameters"
+          spec:
+            - question_name: "VM Name"
+              question_description: "Name for the virtual machine"
+              required: true
+              type: "text"
+              variable: "vm_name"
+              min: 1
+              max: 50
+              default: "my-vm"
+              
+            - question_name: "VM Namespace"
+              question_description: "OpenShift namespace for the VM"
+              required: true
+              type: "text"
+              variable: "vm_namespace"
+              min: 1
+              max: 63
+              default: "default"
+              
+            - question_name: "VM State"
+              question_description: "Desired state of the VM"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_state"
+              choices:
+                - "present"
+                - "absent"
+              default: "present"
+              
+            - question_name: "VM Label"
+              question_description: "Application label for the VM"
+              required: true
+              type: "text"
+              variable: "vm_label"
+              min: 1
+              max: 50
+              default: "my-app"
+              
+            - question_name: "Instance Type"
+              question_description: "VM instance type (size)"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_instancetype"
+              choices:
+                - "u1.micro"
+                - "u1.small"
+                - "u1.medium"
+                - "u1.large"
+                - "u1.xlarge"
+              default: "u1.medium"
+              
+            - question_name: "VM Preference"
+              question_description: "Operating system preference"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_preference"
+              choices:
+                - "fedora"
+                - "rhel.8"
+                - "rhel.9"
+                - "centos.7"
+                - "centos.8"
+              default: "fedora"
+
+            - question_name: "VM OS Version"
+              question_description: "Operating system version"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_os_version"
+              choices:
+                - "fedora"
+                - "rhel8"
+                - "rhel9"
+              default: "fedora"
+        timeout: 900
+        verbosity: 1
+        concurrent_jobs_enabled: true
+        ask_variables_on_launch: true
+        state: present
+      register: vm_creation_template
+
+    # VM Lifecycle Job Template
+    - name: Create Job Template for VM Lifecycle Operations
+      ansible.controller.job_template:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "VM Lifecycle Operations"
+        description: "Start, stop, restart VMs on OpenShift Virtualization"
+        job_type: "run"
+        inventory: "{{ inventory_name }}"
+        project: "{{ project_name }}"
+        playbook: "aap_virt/vm_lifecycle.yml"
+        credential: "OpenShift Credential"
+        execution_environment: "{{ execution_environment_name }}"
+        survey_enabled: true
+        survey_spec:
+          name: "VM Lifecycle Parameters"
+          description: "Configure VM lifecycle operation parameters"
+          spec:
+            - question_name: "VM Operation"
+              question_description: "Operation to perform on the VM(s)"
+              required: true
+              type: "multiplechoice"
+              variable: "vm_operation"
+              choices:
+                - "start"
+                - "stop"
+                - "restart"
+              default: "restart"
+              
+            - question_name: "VM Names"
+              question_description: "VM name(s) - comma-separated for multiple VMs"
+              required: false
+              type: "text"
+              variable: "vm_name"
+              min: 0
+              max: 200
+              default: ""
+              
+            - question_name: "VM Namespace"
+              question_description: "OpenShift namespace containing the VMs"
+              required: true
+              type: "text"
+              variable: "vm_namespace"
+              min: 1
+              max: 63
+              default: "default"
+              
+            - question_name: "VM Labels"
+              question_description: "Label selectors - comma-separated (leave empty if using VM names)"
+              required: false
+              type: "text"
+              variable: "vm_label"
+              min: 0
+              max: 200
+              default: ""
+        
+        timeout: 600
+        verbosity: 1
+        concurrent_jobs_enabled: true
+        ask_variables_on_launch: true
+        state: present
+      register: vm_lifecycle_template
+
+    # VM Hot Plug Job Template
+    - name: Create Job Template for VM Hot Plug Operations
+      ansible.controller.job_template:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "VM Hot Plug Operations"
+        description: "Hot plug/unplug resources to/from VMs on OpenShift Virtualization"
+        job_type: "run"
+        inventory: "{{ inventory_name }}"
+        project: "{{ project_name }}"
+        playbook: "aap_virt/vm_hot_plug.yml"
+        credential: "OpenShift Credential"
+        execution_environment: "{{ execution_environment_name }}"
+        survey_enabled: true
+        survey_spec:
+          name: "VM Hot Plug Parameters"
+          description: "Configure VM hot plug operation parameters"
+          spec:
+            - question_name: "VM Names"
+              question_description: "VM name(s) - comma-separated for multiple VMs"
+              required: true
+              type: "text"
+              variable: "vm_name"
+              min: 1
+              max: 200
+              default: ""
+              
+            - question_name: "VM Namespace"
+              question_description: "OpenShift namespace containing the VMs"
+              required: true
+              type: "text"
+              variable: "vm_namespace"
+              min: 1
+              max: 63
+              default: "default"
+              
+            - question_name: "Hot Plug Operation"
+              question_description: "Type of hot plug operation to perform"
+              required: true
+              type: "multiplechoice"
+              variable: "hot_plug_operation"
+              choices:
+                - "cpu"
+                - "memory"
+                - "disk"
+                - "network"
+              default: "cpu"
+              
+            - question_name: "Resource Specifications"
+              question_description: "Resource specifications in YAML format"
+              required: true
+              type: "textarea"
+              variable: "resource_specs"
+              min: 1
+              max: 1000
+              default: |
+                cpu:
+                  cores: 2
+                memory:
+                  guest: "4Gi"
+        
+        timeout: 600
+        verbosity: 1
+        concurrent_jobs_enabled: true
+        ask_variables_on_launch: true
+        state: present
+      register: vm_hotplug_template
+
+    # VM Patching Job Template
+    - name: Create Job Template for VM Patching Operations
+      ansible.controller.job_template:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "VM Patching Operations"
+        description: "Apply patches and updates to VMs on OpenShift Virtualization"
+        job_type: "run"
+        inventory: "ocp-virt"
+        project: "{{ project_name }}"
+        playbook: "aap_virt/vm_patching.yml"
+        credentials:
+          - "OpenShift Credential"
+          - "Workshop Credential"
+        execution_environment: "{{ execution_environment_name }}"
+        survey_enabled: true
+        survey_spec:
+          name: "VM Patching Parameters"
+          description: "Configure VM patching operation parameters"
+          spec:
+            - question_name: "Patch Type"
+              question_description: "Type of patching to perform"
+              required: true
+              type: "multiplechoice"
+              variable: "patch_type"
+              choices:
+                - "security"
+                - "all"
+                - "specific"
+              default: "security"
+              
+            - question_name: "VM Pattern"
+              question_description: "Pattern to match VM hostnames (use 'all' for all VMs)"
+              required: true
+              type: "text"
+              variable: "vm_pattern"
+              min: 1
+              max: 100
+              default: "all"
+              
+            - question_name: "Reboot After Patching"
+              question_description: "Whether to reboot VMs after patching"
+              required: true
+              type: "multiplechoice"
+              variable: "reboot_after_patch"
+              choices:
+                - "yes"
+                - "no"
+              default: "no"
+              
+            - question_name: "Package Names"
+              question_description: "Specific packages to update (for 'specific' patch type)"
+              required: false
+              type: "text"
+              variable: "specific_packages"
+              min: 0
+              max: 500
+              default: ""
+        
+        timeout: 1800  # 30 minutes for patching operations
+        verbosity: 1
+        concurrent_jobs_enabled: false  # Patching should be serialized
+        ask_variables_on_launch: true
+        state: present
+      register: vm_patching_template
+
+    # VM Deletion Job Template
+    - name: Create Job Template for VM Deletion
+      ansible.controller.job_template:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_verify_ssl }}"
+        name: "Delete VM on OpenShift Virtualization"
+        description: "Deletes virtual machines on OpenShift Virtualization"
+        job_type: "run"
+        inventory: "{{ inventory_name }}"
+        project: "{{ project_name }}"
+        playbook: "aap_virt/delete_vm.yml"
+        credential: "OpenShift Credential"
+        survey_enabled: true
+        survey_spec:
+          name: "VM Deletion Parameters"
+          description: "Configure VM deletion parameters"
+          spec:
+            - question_name: "VM Names"
+              question_description: "VM name(s) to delete - comma-separated for multiple VMs"
+              required: true
+              type: "text"
+              variable: "vm_name"
+              min: 1
+              max: 200
+              default: ""
+              
+            - question_name: "VM Namespace"
+              question_description: "OpenShift namespace containing the VMs"
+              required: true
+              type: "text"
+              variable: "vm_namespace"
+              min: 1
+              max: 63
+              default: "default"
+              
+            - question_name: "Confirmation"
+              question_description: "Type 'DELETE' to confirm VM deletion"
+              required: true
+              type: "text"
+              variable: "delete_confirmation"
+              min: 6
+              max: 6
+              default: ""
+        
+        timeout: 600
+        verbosity: 1
+        concurrent_jobs_enabled: true
+        ask_variables_on_launch: true
+        state: present
+      register: vm_deletion_template
+
+    - name: Display Job Template Creation Results
+      ansible.builtin.debug:
+        msg: 
+          - "All Job Templates created successfully!"
+          - "VM Creation Template ID: {{ vm_creation_template.id }}"
+          - "VM Lifecycle Template ID: {{ vm_lifecycle_template.id }}"
+          - "VM Hot Plug Template ID: {{ vm_hotplug_template.id }}"
+          - "VM Patching Template ID: {{ vm_patching_template.id }}"
+          - "VM Deletion Template ID: {{ vm_deletion_template.id }}"
+          - ""
+          - "You can now launch these job templates from the AAP web interface"
+          - "Or use the ansible.controller.job_launch module to run them programmatically"
