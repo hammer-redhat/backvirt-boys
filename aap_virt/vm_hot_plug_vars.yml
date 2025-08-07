@@ -1,7 +1,0 @@
----
-# VM Hot Plug Variables
-vm_hot_plug_request:
-  - namespace: default
-    names:
-      - hammer-rhel9
-      - hammer-rhel8
