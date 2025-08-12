@@ -9,6 +9,7 @@
     vm_collect_openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}"
     vm_collect_openshift_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
     vm_collect_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
+    openshift_api_key: "{{ vm_collect_openshift_api_key }}"
   tasks:
     - name: Collect VMs
       ansible.builtin.include_role:
