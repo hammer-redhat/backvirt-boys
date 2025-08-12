@@ -4,8 +4,23 @@
   hosts: localhost
   connection: local
   gather_facts: false
-    
+  vars:
+    # Default values for variables that should be provided via survey or extra_vars
+    vm_operation: "{{ vm_operation | default('restart') }}"
+    vm_name: "{{ vm_name | default('') }}"
+    vm_namespace: "{{ vm_namespace | default('default') }}"
+    vm_label: "{{ vm_label | default('') }}"
+
   tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vm_operation is defined
+          - vm_operation in ['start', 'stop', 'restart']
+          - vm_namespace is defined
+          - vm_name != '' or vm_label != ''
+        fail_msg: "Required variables missing. Need vm_operation, vm_namespace, and either vm_name or vm_label"
+
     - name: Invoke VM Lifecycle role (VM Operations)
       ansible.builtin.include_role:
         name: infra.openshift_virtualization_ops.vm_lifecycle
@@ -14,5 +29,8 @@
         openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('', True) }}"
         openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}" # noqa: yaml[line-length]
         openshift_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='') | default(false) | bool }}" # noqa: yaml[line-length]
-        vm_hot_plug_vms: "{{ vm_name.split(',') if vm_name else [] }}"
+        vm_lifecycle_operation: "{{ vm_operation }}"
+        vm_lifecycle_namespace: "{{ vm_namespace }}"
+        vm_lifecycle_vms: "{{ vm_name.split(',') if vm_name else [] }}"
+        vm_lifecycle_label: "{{ vm_label if vm_label else omit }}"
 ...
