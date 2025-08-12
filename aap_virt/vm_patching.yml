@@ -4,6 +4,7 @@
 - name: Patching vm's
   hosts: all
   become: true
+  gather_facts: false
   tasks:
     - name: Calling patching role
       ansible.builtin.include_role:
