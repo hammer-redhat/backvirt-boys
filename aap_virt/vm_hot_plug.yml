@@ -5,11 +5,29 @@
   connection: local
   gather_facts: false
   tasks:
+    - name: Collect VMs
+      ansible.builtin.include_role:
+        name: infra.openshift_virtualization_ops.vm_collect
+      vars:
+        vm_collect_openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}"
+        vm_collect_openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('https://api.virt.na-launch.com:6443', True) }}"
+        vm_collect_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='') | default(false) | bool }}"
+        vm_collect_vms_var: collected_vms
+        vm_collect_request_instance:
+          name: "{{ vm_name }}"
+          namespace: "{{ vm_namespace }}"
+
+    - name: Filter to target VM only
+      ansible.builtin.set_fact:
+        target_vm: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name) | list | first }}"
+
     - name: Invoke VM Hot Plugging
       ansible.builtin.include_role:
         name: infra.openshift_virtualization_ops.vm_hot_plug
       vars:
-        openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('', True) }}"
+        openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('https://api.virt.na-launch.com:6443', True) }}"
         openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}" # noqa: yaml[line-length]
         openshift_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='') | default(false) | bool }}" # noqa: yaml[line-length]
+        vm_hot_plug_vms:
+          - "{{ target_vm | combine({'compute': {'instanceType': instance_type_name | default('u1.medium')}}) }}"
 ...
