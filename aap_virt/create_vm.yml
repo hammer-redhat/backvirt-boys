@@ -243,8 +243,7 @@
         wait: false
 
 
-    - name: Create a Linux VirtualMachine with a DataVolume template
-      when: vm_os_version | lower != 'win2k19'
+    - name: Create a VirtualMachine with a DataVolume template
       redhat.openshift_virtualization.kubevirt_vm:
         state: "{{ vm_state }}"
         name: "{{ vm_name }}"
@@ -283,6 +282,4 @@
               name: cloudinitdisk
         wait: true
         wait_timeout: 600
-
-      
         

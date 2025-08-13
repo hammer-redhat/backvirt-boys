@@ -122,6 +122,7 @@
                 - "rhel9"
                 - "centos7"
                 - "centos8"
+                - "windows.2k19"
               default: "fedora"
               
             - question_name: "DataVolume Template Name"
