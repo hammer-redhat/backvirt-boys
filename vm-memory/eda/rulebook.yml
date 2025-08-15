@@ -1,13 +1,17 @@
-- name: Listen for VM High Memory events
+---
+- name: Run a webhook listener service
   hosts: all
   sources:
     - ansible.eda.webhook:
-        host: 0.0.0.0
         port: 5000
   rules:
-    - name: Rule - Print event information
-      condition: event.meta.headers is defined
+    - name: Webhook event
+      condition: event.payload.ping == "pong"
       action:
-        run_job_template:
-          name: Scale VM Memory
-          organization: Default
+        debug:
+          msg: "Webhook triggered!"
+
+    - name: Shutdown
+      condition: event.payload.shutdown is defined
+      action:
+        shutdown:
