@@ -1,23 +1,13 @@
----
-- name: Handle VM High Memory Usage Alerts from Prometheus
-  hosts: localhost
+- name: Listen for VM High Memory events
+  hosts: all
   sources:
     - ansible.eda.webhook:
         host: 0.0.0.0
         port: 5000
-  
   rules:
-    - name: VM High Memory Usage Alert
-      condition: |
-        event.payload.status == "firing" and
-        event.payload.commonLabels.alertname == "VMHighMemoryUsage"
+    - name: Rule - Print event information
+      condition: event.meta.headers is defined
       action:
         run_job_template:
-          name: Scale VM Memory      # Name of the Job Template in AAP
-          organization: Default      # Change if different
-          job_args:
-            extra_vars:
-              vm_name: "{{ event.payload.commonLabels.name }}"
-              namespace: "{{ event.payload.commonLabels.namespace }}"
-              severity: "{{ event.payload.commonLabels.severity }}"
-              description: "{{ event.payload.commonAnnotations.description }}"
+          name: Scale VM Memory
+          organization: Default
