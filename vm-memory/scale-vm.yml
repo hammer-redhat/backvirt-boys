@@ -1,0 +1,14 @@
+- name: Scale VM Memory
+  hosts: localhost
+  gather_facts: no
+  vars:
+    new_memory_size: 4Gi    # Default if not overridden
+
+  tasks:
+    - name: Show alert details from EDA
+      debug:
+        msg:
+          - "Scaling VM {{ vm_name }} in namespace {{ namespace }}"
+          - "Severity: {{ severity }}"
+          - "Description: {{ description }}"
+          - "New memory size: {{ new_memory_size }}"
