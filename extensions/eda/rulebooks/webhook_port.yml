@@ -4,14 +4,34 @@
   sources:
     - ansible.eda.webhook:
         port: 5000
+
   rules:
+    # Health check rule
     - name: Webhook event
       condition: event.payload.ping == "pong"
       action:
         debug:
           msg: "Webhook triggered!"
 
+    # Shutdown handler
     - name: Shutdown
       condition: event.payload.shutdown is defined
       action:
         shutdown:
+
+    # VM High Memory Alert handler
+    - name: Trigger Scale VM Memory job
+      condition: >
+        event.payload.status == "firing" and
+        event.payload.commonLabels.alertname == "VMHighMemoryUsage"
+      actions:
+        - run_job_template:
+            name: "Scale VM Memory"     # Job Template name in AAP
+            organization: "Default"     # Change if needed
+            set_facts: true
+            job_args:
+              extra_vars:
+                vm_name: "{{ event.payload.commonLabels.name }}"
+                namespace: "{{ event.payload.commonLabels.namespace }}"
+                severity: "{{ event.payload.commonLabels.severity }}"
+                description: "{{ event.payload.commonAnnotations.description }}"
