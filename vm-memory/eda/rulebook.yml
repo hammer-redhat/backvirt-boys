@@ -6,12 +6,7 @@
         port: 5000
   rules:
     - name: Webhook event
-      condition: event.payload.ping == "pong"
+      condition: event.payload.status == 'firing' 
       action:
         debug:
-          msg: "Webhook triggered!"
-
-    - name: Shutdown
-      condition: event.payload.shutdown is defined
-      action:
-        shutdown:
+          msg: "Webhook triggered! Event: {{ event.payload }}"
