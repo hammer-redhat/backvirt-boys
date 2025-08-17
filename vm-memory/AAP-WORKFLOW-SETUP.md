@@ -112,22 +112,32 @@ The EDA rulebook now uses a trigger job template (since `run_workflow_job_templa
 
 ### Step 4: Configure AAP Controller Access
 
-The trigger job needs AAP API access. Set these environment variables in the job template:
+The trigger job needs AAP API access. **OAuth tokens are recommended** for better security.
 
-**Option A: Environment Variables (Recommended)**
+#### **Option A: OAuth Token Authentication (Recommended)**
+1. **Create OAuth Token**: Follow the guide in `CREATE-AAP-TOKEN.md`
+2. **Set Environment Variables** in the job template:
 ```bash
-CONTROLLER_HOST=https://your-aap-controller.example.com
+CONTROLLER_HOST=http://aap.aap
+CONTROLLER_OAUTH_TOKEN=your-oauth-token-here
+CONTROLLER_VERIFY_SSL=false
+```
+
+#### **Option B: Username/Password Authentication (Fallback)**
+```bash
+CONTROLLER_HOST=http://aap.aap
 CONTROLLER_USERNAME=admin
 CONTROLLER_PASSWORD=your-aap-password
 CONTROLLER_VERIFY_SSL=false
 ```
 
-**Important:** 
-- `CONTROLLER_HOST` should be the base URL only (e.g., `https://aap.example.com`)
-- Do NOT include `/api/controller/` or other paths - these are added by the playbook
+#### **Option C: Custom Credential Type**
+See `CREATE-AAP-TOKEN.md` for detailed credential type configuration.
 
-**Option B: Custom Credential Type**
-Create a custom credential type in AAP with these fields and attach to the trigger job template.
+**Important:** 
+- `CONTROLLER_HOST` should be the base URL only (e.g., `http://aap.aap`)
+- Do NOT include `/api/controller/` or other paths - these are added by the playbook
+- OAuth tokens provide better security and are the preferred method
 
 ## 🔧 Complete Workflow Architecture
 

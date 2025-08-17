@@ -6,6 +6,7 @@
   vars:
     # AAP Controller connection details
     aap_controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST', default=Undefined) | default('', True) }}"
+    aap_controller_token: "{{ lookup('ansible.builtin.env', 'CONTROLLER_OAUTH_TOKEN', default=Undefined) | default('', True) }}"
     aap_controller_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME', default=Undefined) | default('admin', True) }}"
     aap_controller_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD', default=Undefined) | default('', True) }}"
     aap_controller_verify_ssl: "{{ lookup('ansible.builtin.env', 'CONTROLLER_VERIFY_SSL', default='false') | default(false) | bool }}"
@@ -32,7 +33,9 @@
           - "description: '{{ description_safe }}'"
           - "workflow_name: '{{ workflow_template_name }}'"
           - "aap_controller_host: '{{ aap_controller_host }}'"
+          - "aap_controller_token: {{ 'SET' if aap_controller_token else 'NOT SET' }}"
           - "aap_controller_password: {{ 'SET' if aap_controller_password else 'NOT SET' }}"
+          - "auth_method: {{ 'Token' if aap_controller_token else 'Username/Password' if aap_controller_password else 'NONE' }}"
 
     - name: Validate required variables
       ansible.builtin.assert:
@@ -40,13 +43,17 @@
           - vm_name_safe != ''
           - vm_namespace_safe != ''
           - aap_controller_host != ''
-          - aap_controller_password != ''
+          - (aap_controller_token != '') or (aap_controller_password != '')
         fail_msg: |
           Missing required variables:
           - vm_name: {{ vm_name_safe | default('NOT PROVIDED') }}
           - namespace: {{ vm_namespace_safe | default('NOT PROVIDED') }}
           - CONTROLLER_HOST: {{ aap_controller_host | default('NOT PROVIDED') }}
-          - CONTROLLER_PASSWORD: {{ 'SET' if aap_controller_password else 'NOT PROVIDED' }}
+          - CONTROLLER_OAUTH_TOKEN or CONTROLLER_PASSWORD: {{ 'SET' if (aap_controller_token or aap_controller_password) else 'NOT PROVIDED' }}
+          
+          Authentication Options:
+          Option 1 (Recommended): Set CONTROLLER_OAUTH_TOKEN
+          Option 2: Set CONTROLLER_USERNAME and CONTROLLER_PASSWORD
 
     - name: Display workflow trigger details
       ansible.builtin.debug:
@@ -60,17 +67,35 @@
           - "Severity: {{ severity_safe }}"
 
     # Get workflow template ID
-    - name: Get workflow template information
+    - name: Get workflow template information (using token auth)
+      ansible.builtin.uri:
+        url: "{{ aap_controller_host }}/api/controller/v2/workflow_job_templates/"
+        method: GET
+        validate_certs: "{{ aap_controller_verify_ssl }}"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer {{ aap_controller_token }}"
+        status_code: 200
+      register: workflow_templates_response
+      when: aap_controller_token != ''
+
+    - name: Get workflow template information (using basic auth)
       ansible.builtin.uri:
         url: "{{ aap_controller_host }}/api/controller/v2/workflow_job_templates/"
         method: GET
         user: "{{ aap_controller_username }}"
         password: "{{ aap_controller_password }}"
+        force_basic_auth: true
         validate_certs: "{{ aap_controller_verify_ssl }}"
         headers:
           Content-Type: "application/json"
         status_code: 200
-      register: workflow_templates_response
+      register: workflow_templates_response_basic
+      when: aap_controller_token == '' and aap_controller_password != ''
+
+    - name: Set workflow templates response
+      ansible.builtin.set_fact:
+        workflow_templates_response: "{{ workflow_templates_response if aap_controller_token != '' else workflow_templates_response_basic }}"
 
     - name: Find target workflow template
       ansible.builtin.set_fact:
@@ -89,12 +114,34 @@
         workflow_template_id: "{{ target_workflow[0].id }}"
 
     # Launch workflow with variables
-    - name: Launch workflow template
+    - name: Launch workflow template (using token auth)
       ansible.builtin.uri:
-        url: "{{ aap_controller_host }}/api/v2/workflow_job_templates/{{ workflow_template_id }}/launch/"
+        url: "{{ aap_controller_host }}/api/controller/v2/workflow_job_templates/{{ workflow_template_id }}/launch/"
+        method: POST
+        validate_certs: "{{ aap_controller_verify_ssl }}"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer {{ aap_controller_token }}"
+        body_format: json
+        body:
+          extra_vars:
+            vm_name: "{{ vm_name_safe }}"
+            namespace: "{{ vm_namespace_safe }}"
+            severity: "{{ severity_safe }}"
+            description: "{{ description_safe }}"
+            triggered_by: "EDA"
+            triggered_at: "{{ ansible_date_time.iso8601 }}"
+        status_code: [201, 202]
+      register: workflow_launch_response
+      when: aap_controller_token != ''
+
+    - name: Launch workflow template (using basic auth)
+      ansible.builtin.uri:
+        url: "{{ aap_controller_host }}/api/controller/v2/workflow_job_templates/{{ workflow_template_id }}/launch/"
         method: POST
         user: "{{ aap_controller_username }}"
         password: "{{ aap_controller_password }}"
+        force_basic_auth: true
         validate_certs: "{{ aap_controller_verify_ssl }}"
         headers:
           Content-Type: "application/json"
@@ -108,7 +155,12 @@
             triggered_by: "EDA"
             triggered_at: "{{ ansible_date_time.iso8601 }}"
         status_code: [201, 202]
-      register: workflow_launch_response
+      register: workflow_launch_response_basic
+      when: aap_controller_token == '' and aap_controller_password != ''
+
+    - name: Set workflow launch response
+      ansible.builtin.set_fact:
+        workflow_launch_response: "{{ workflow_launch_response if aap_controller_token != '' else workflow_launch_response_basic }}"
 
     - name: Display workflow launch result
       ansible.builtin.debug:
