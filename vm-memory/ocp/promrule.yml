@@ -21,7 +21,7 @@ spec:
                                            / 
           kubevirt_vmi_memory_available_bytes{ namespace="webhook-store",
                                                name="rhel-8-brown-stork-74"} 
-          ) * 100 > 80
+          ) * 100 > 75
       for: 10s
       labels:
         severity: critical
