@@ -1,0 +1,29 @@
+---
+# Quick test script for disk stress testing
+# This creates a smaller test to verify the playbook works correctly
+
+- name: Test disk stress functionality (safe small test)
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    # Safe test parameters - only use small amount for testing
+    stress_disk_percentage: 10  # Much smaller for testing
+    stress_disk_path: "/tmp"
+    stress_file_name: "test_disk_stress_small.img" 
+    stress_timeout: "30s"  # Short duration for testing
+    
+  tasks:
+    - name: Display test information
+      debug:
+        msg:
+          - "🧪 DISK STRESS TEST MODE 🧪"
+          - "This is a SAFE TEST run with small file sizes"
+          - "Target: {{ stress_disk_percentage }}% of {{ stress_disk_path }}"
+          - "Duration: {{ stress_timeout }}"
+          - "File: {{ stress_disk_path }}/{{ stress_file_name }}"
+          - ""
+          - "For actual stress testing, use vm-disk-stress.yml with higher percentages"
+
+    - name: Include the main disk stress tasks
+      include: vm-disk-stress.yml
