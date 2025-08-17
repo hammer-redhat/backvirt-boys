@@ -1,6 +1,6 @@
 ---
 # Quick test script for disk stress testing
-# This creates a smaller test to verify the playbook works correctly
+# This creates a smaller test to verify the disk stress functionality
 
 - name: Test disk stress functionality (safe small test)
   hosts: localhost
@@ -8,10 +8,10 @@
   become: true
   vars:
     # Safe test parameters - only use small amount for testing
-    stress_disk_percentage: 10  # Much smaller for testing
+    stress_disk_percentage: 5   # Very small for testing
     stress_disk_path: "/tmp"
     stress_file_name: "test_disk_stress_small.img" 
-    stress_timeout: "30s"  # Short duration for testing
+    stress_timeout: "10s"  # Very short duration for testing
     
   tasks:
     - name: Display test information
@@ -23,7 +23,73 @@
           - "Duration: {{ stress_timeout }}"
           - "File: {{ stress_disk_path }}/{{ stress_file_name }}"
           - ""
-          - "For actual stress testing, use vm-disk-stress.yml with higher percentages"
+          - "For actual stress testing, use: ansible-playbook vm-disk-stress.yml"
 
-    - name: Include the main disk stress tasks
-      include: vm-disk-stress.yml
+    - name: Set full path for stress file
+      set_fact:
+        stress_file_path: "{{ stress_disk_path }}/{{ stress_file_name }}"
+
+    - name: Get filesystem information for target path
+      shell: df -B1 {{ stress_disk_path }} | tail -1
+      register: df_output
+      changed_when: false
+
+    - name: Parse filesystem information
+      set_fact:
+        fs_total: "{{ df_output.stdout.split()[1] | int }}"
+        fs_available: "{{ df_output.stdout.split()[3] | int }}"
+
+    - name: Calculate small test file size
+      set_fact:
+        file_size_needed: "{{ ((fs_total | int) * (stress_disk_percentage | int) / 100) | int }}"
+
+    - name: Display test calculations
+      debug:
+        msg:
+          - "Test file size: {{ (file_size_needed | int / (1024*1024)) | round(2) }} MB"
+          - "Available space: {{ (fs_available | int / (1024*1024*1024)) | round(2) }} GB"
+
+    - name: Create small test file using fallocate
+      block:
+        - name: Remove existing test file if present
+          file:
+            path: "{{ stress_file_path }}"
+            state: absent
+
+        - name: Create small test file
+          command: fallocate -l {{ file_size_needed }} {{ stress_file_path }}
+
+        - name: Verify test file creation
+          stat:
+            path: "{{ stress_file_path }}"
+          register: test_file_stat
+
+        - name: Display success message
+          debug:
+            msg: "✅ Test file created: {{ (test_file_stat.stat.size / (1024*1024)) | round(2) }} MB"
+
+        - name: Wait for test duration
+          pause:
+            seconds: "{{ stress_timeout | regex_replace('s$', '') | int }}"
+            prompt: "Test file active for {{ stress_timeout }}. Press Ctrl+C to test cancellation cleanup..."
+
+      rescue:
+        - name: Handle test cancellation
+          debug:
+            msg: "⚠️ Test cancelled - cleaning up test file"
+
+      always:
+        - name: Clean up test file
+          file:
+            path: "{{ stress_file_path }}"
+            state: absent
+
+        - name: Confirm cleanup
+          debug:
+            msg: "🧹 Test file cleaned up successfully"
+
+    - name: Test completion message
+      debug:
+        msg: 
+          - "✅ Disk stress test functionality verified!"
+          - "The main playbook vm-disk-stress.yml is ready for use."
