@@ -4,6 +4,14 @@
   connection: local
   gather_facts: false
   vars:
+    # Authentication variables following AAP patterns from vm_hot_plug.yml
+    vm_collect_openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
+    vm_collect_verify_ssl: "{{ vm_collect_openshift_verify_ssl }}"
+    openshift_api_key: "{{ vm_collect_openshift_api_key }}"
+    openshift_host: "{{ vm_collect_openshift_host }}"
+    openshift_verify_ssl: "{{ vm_collect_openshift_verify_ssl }}"
     # Instance type progression mapping
     instance_type_progression:
       u1.nano: u1.micro
@@ -66,6 +74,9 @@
       kubernetes.core.k8s_info:
         api_version: instancetype.kubevirt.io/v1beta1
         kind: VirtualMachineClusterInstancetype
+        host: "{{ openshift_host }}"
+        api_key: "{{ openshift_api_key }}"
+        verify_ssl: "{{ openshift_verify_ssl }}"
       register: cluster_instance_types
 
     - name: Display available instance types
