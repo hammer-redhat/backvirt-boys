@@ -1,0 +1,130 @@
+---
+- name: Trigger VM Scaling Workflow via AAP API
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    # AAP Controller connection details
+    aap_controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST', default=Undefined) | default('', True) }}"
+    aap_controller_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME', default=Undefined) | default('admin', True) }}"
+    aap_controller_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD', default=Undefined) | default('', True) }}"
+    aap_controller_verify_ssl: "{{ lookup('ansible.builtin.env', 'CONTROLLER_VERIFY_SSL', default='false') | default(false) | bool }}"
+    
+    # Workflow template details
+    workflow_template_name: "{{ workflow_name | default('VM Scaling with Approval') }}"
+    organization_name: "{{ organization | default('Default') }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vm_name is defined
+          - vm_name != ''
+          - namespace is defined
+          - namespace != ''
+          - aap_controller_host != ''
+          - aap_controller_password != ''
+        fail_msg: |
+          Missing required variables:
+          - vm_name: {{ vm_name | default('NOT PROVIDED') }}
+          - namespace: {{ namespace | default('NOT PROVIDED') }}
+          - CONTROLLER_HOST: {{ aap_controller_host | default('NOT PROVIDED') }}
+          - CONTROLLER_PASSWORD: {{ 'SET' if aap_controller_password else 'NOT PROVIDED' }}
+
+    - name: Display workflow trigger details
+      ansible.builtin.debug:
+        msg:
+          - "Triggering AAP Workflow Template"
+          - "Controller: {{ aap_controller_host }}"
+          - "Workflow: {{ workflow_template_name }}"
+          - "Organization: {{ organization_name }}"
+          - "VM Name: {{ vm_name }}"
+          - "Namespace: {{ namespace }}"
+          - "Severity: {{ severity | default('unknown') }}"
+
+    # Get workflow template ID
+    - name: Get workflow template information
+      ansible.builtin.uri:
+        url: "{{ aap_controller_host }}/api/v2/workflow_job_templates/"
+        method: GET
+        user: "{{ aap_controller_username }}"
+        password: "{{ aap_controller_password }}"
+        validate_certs: "{{ aap_controller_verify_ssl }}"
+        headers:
+          Content-Type: "application/json"
+        status_code: 200
+      register: workflow_templates_response
+
+    - name: Find target workflow template
+      ansible.builtin.set_fact:
+        target_workflow: "{{ workflow_templates_response.json.results | selectattr('name', 'equalto', workflow_template_name) | list }}"
+
+    - name: Validate workflow template exists
+      ansible.builtin.fail:
+        msg: |
+          Workflow template '{{ workflow_template_name }}' not found.
+          Available workflow templates:
+          {{ workflow_templates_response.json.results | map(attribute='name') | list | join(', ') }}
+      when: target_workflow | length == 0
+
+    - name: Extract workflow template ID
+      ansible.builtin.set_fact:
+        workflow_template_id: "{{ target_workflow[0].id }}"
+
+    # Launch workflow with variables
+    - name: Launch workflow template
+      ansible.builtin.uri:
+        url: "{{ aap_controller_host }}/api/v2/workflow_job_templates/{{ workflow_template_id }}/launch/"
+        method: POST
+        user: "{{ aap_controller_username }}"
+        password: "{{ aap_controller_password }}"
+        validate_certs: "{{ aap_controller_verify_ssl }}"
+        headers:
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          extra_vars:
+            vm_name: "{{ vm_name }}"
+            namespace: "{{ namespace }}"
+            severity: "{{ severity | default('unknown') }}"
+            description: "{{ description | default('VM scaling triggered by EDA webhook') }}"
+            triggered_by: "EDA"
+            triggered_at: "{{ ansible_date_time.iso8601 }}"
+        status_code: [201, 202]
+      register: workflow_launch_response
+
+    - name: Display workflow launch result
+      ansible.builtin.debug:
+        msg:
+          - "✅ Workflow successfully launched!"
+          - "Workflow Job ID: {{ workflow_launch_response.json.id }}"
+          - "Workflow Job URL: {{ aap_controller_host }}/#/jobs/workflow/{{ workflow_launch_response.json.id }}"
+          - "Status: {{ workflow_launch_response.json.status }}"
+          - ""
+          - "🔗 Monitor progress:"
+          - "  AAP Web UI: {{ aap_controller_host }}/#/jobs/workflow/{{ workflow_launch_response.json.id }}"
+          - "  API Status: {{ aap_controller_host }}/api/v2/workflow_jobs/{{ workflow_launch_response.json.id }}/"
+
+    # Optional: Wait for workflow to complete (uncomment if needed)
+    # - name: Wait for workflow completion (optional)
+    #   ansible.builtin.uri:
+    #     url: "{{ aap_controller_host }}/api/v2/workflow_jobs/{{ workflow_launch_response.json.id }}/"
+    #     method: GET
+    #     user: "{{ aap_controller_username }}"
+    #     password: "{{ aap_controller_password }}"
+    #     validate_certs: "{{ aap_controller_verify_ssl }}"
+    #   register: workflow_status
+    #   until: workflow_status.json.status in ['successful', 'failed', 'error', 'canceled']
+    #   retries: 60
+    #   delay: 10
+    #   when: wait_for_completion | default(false) | bool
+
+    # Set stats for potential chaining
+    - name: Set workflow job information for downstream jobs
+      ansible.builtin.set_stats:
+        data:
+          triggered_workflow_id: "{{ workflow_launch_response.json.id }}"
+          triggered_workflow_url: "{{ aap_controller_host }}/#/jobs/workflow/{{ workflow_launch_response.json.id }}"
+          triggered_at: "{{ ansible_date_time.iso8601 }}"
+          vm_name: "{{ vm_name }}"
+          vm_namespace: "{{ namespace }}"

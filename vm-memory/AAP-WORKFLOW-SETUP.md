@@ -11,9 +11,19 @@ Instead of using `ansible.builtin.pause` (which doesn't work in AAP), we create 
 
 ### Step 1: Create Job Templates
 
-Create these 3 job templates in AAP:
+Create these 4 job templates in AAP:
 
-#### 1.1 "VM Scale Request" Job Template
+#### 1.1 "Trigger VM Scaling Workflow" Job Template
+- **Playbook**: `vm-memory/trigger-workflow.yml`
+- **Purpose**: EDA-callable job that triggers the workflow via AAP API
+- **Credentials**: AAP Controller credentials
+- **Environment Variables**:
+  - `CONTROLLER_HOST`: Your AAP controller URL (e.g., https://aap.example.com)
+  - `CONTROLLER_USERNAME`: AAP username (usually admin)
+  - `CONTROLLER_PASSWORD`: AAP password
+  - `CONTROLLER_VERIFY_SSL`: false (for self-signed certs)
+
+#### 1.2 "VM Scale Request" Job Template
 - **Playbook**: `vm-memory/scale-vm-request.yml`
 - **Purpose**: Validates VM and displays scaling request details
 - **Survey Variables**:
@@ -21,12 +31,12 @@ Create these 3 job templates in AAP:
   - `namespace` (Text, Default: "default")
   - `new_instance_type` (Choice, Optional: u1.nano, u1.micro, u1.small, etc.)
 
-#### 1.2 "VM Scale Execute" Job Template  
+#### 1.3 "VM Scale Execute" Job Template  
 - **Playbook**: `vm-memory/scale-vm-execute.yml`
 - **Purpose**: Performs the actual VM scaling after approval
 - **Variables**: Inherited from workflow
 
-#### 1.3 "VM Scale Complete" Job Template (Optional)
+#### 1.4 "VM Scale Complete" Job Template (Optional)
 - **Playbook**: `vm-memory/scale-vm.yml` (complete workflow in one job)
 - **Purpose**: Direct scaling without approval (for emergency use)
 
@@ -80,7 +90,7 @@ Create these 3 job templates in AAP:
 
 ### Step 3: Configure EDA Integration
 
-Update your EDA rulebook to trigger the workflow:
+The EDA rulebook now uses a trigger job template (since `run_workflow_job_template` isn't supported in all EDA versions):
 
 ```yaml
 # In extensions/eda/rulebooks/webhook_port.yml
@@ -89,15 +99,53 @@ Update your EDA rulebook to trigger the workflow:
     event.payload.status == "firing" and
     event.payload.commonLabels.alertname == "VMHighMemoryUsage"
   actions:
-    - run_workflow_job_template:
-        name: "VM Scaling with Approval"
+    - run_job_template:
+        name: "Trigger VM Scaling Workflow"  # Job that triggers workflow via API
         organization: "Default"
         extra_vars:
           vm_name: "{{ event.payload.commonLabels.name }}"
           namespace: "{{ event.payload.commonLabels.namespace }}"
           severity: "{{ event.payload.commonLabels.severity }}"
           description: "{{ event.payload.commonAnnotations.description }}"
+          workflow_name: "VM Scaling with Approval"
 ```
+
+### Step 4: Configure AAP Controller Access
+
+The trigger job needs AAP API access. Set these environment variables in the job template:
+
+**Option A: Environment Variables (Recommended)**
+```bash
+CONTROLLER_HOST=https://your-aap-controller.example.com
+CONTROLLER_USERNAME=admin
+CONTROLLER_PASSWORD=your-aap-password
+CONTROLLER_VERIFY_SSL=false
+```
+
+**Option B: Custom Credential Type**
+Create a custom credential type in AAP with these fields and attach to the trigger job template.
+
+## 🔧 Complete Workflow Architecture
+
+```
+EDA Webhook Alert (namespace: webhook-store)
+        │
+        ▼
+┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
+│ Trigger Workflow    │───▶│  VM Scale Request   │───▶│   Approval Node     │───▶│  VM Scale Execute   │
+│   (Job Template)    │    │   (Job Template)    │    │  (Manual Review)    │    │   (Job Template)    │
+│                     │    │                     │    │                     │    │                     │
+│ • Call AAP API      │    │ • Validate VM       │    │ • Review details    │    │ • Perform scaling   │
+│ • Launch workflow   │    │ • Check permissions │    │ • Approve/Deny      │    │ • Verify results    │
+│ • Pass variables    │    │ • Display plan      │    │ • Timeout handling  │    │ • Report status     │
+└─────────────────────┘    └─────────────────────┘    └─────────────────────┘    └─────────────────────┘
+```
+
+**Why this approach?**
+- EDA `run_workflow_job_template` action not supported in all versions
+- Uses standard `run_job_template` action which is universally supported  
+- Trigger job uses AAP API to launch workflow with proper variable passing
+- Maintains all approval and error handling capabilities
 
 ## 🎯 Workflow Benefits
 

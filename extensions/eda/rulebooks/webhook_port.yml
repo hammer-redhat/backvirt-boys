@@ -25,9 +25,9 @@
         event.payload.status == "firing" and
         event.payload.commonLabels.alertname == "VMHighMemoryUsage"
       actions:
-        - run_workflow_job_template:
-            name: "VM Scaling with Approval"  # Workflow Template name in AAP
-            organization: "Default"           # Change if needed
+        - run_job_template:
+            name: "Trigger VM Scaling Workflow"  # Job Template that triggers workflow
+            organization: "Default"             # Change if needed
             set_facts: true
             job_args:
               extra_vars:
@@ -35,6 +35,7 @@
                 namespace: "{{ event.payload.commonLabels.namespace }}"
                 severity: "{{ event.payload.commonLabels.severity }}"
                 description: "{{ event.payload.commonAnnotations.description }}"
+                workflow_name: "VM Scaling with Approval"
 
     # VM High Memory Alert handler - DIRECT (NO APPROVAL) 
     # Uncomment this rule and comment the above for emergency/direct scaling
