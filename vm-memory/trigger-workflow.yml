@@ -62,7 +62,7 @@
     # Get workflow template ID
     - name: Get workflow template information
       ansible.builtin.uri:
-        url: "{{ aap_controller_host }}/api/v2/workflow_job_templates/"
+        url: "{{ aap_controller_host }}/api/controller/v2/workflow_job_templates/"
         method: GET
         user: "{{ aap_controller_username }}"
         password: "{{ aap_controller_password }}"
