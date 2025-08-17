@@ -46,6 +46,15 @@
           - "Target Instance Type: {{ new_instance_type_final if new_instance_type_final else 'Auto-detect next size' }}"
 
     # Step 1: Get current VM information
+    - name: Debug authentication variables
+      ansible.builtin.debug:
+        msg:
+          - "OpenShift Host: {{ openshift_host }}"
+          - "API Key defined: {{ 'Yes' if openshift_api_key else 'No' }}"
+          - "Verify SSL: {{ openshift_verify_ssl }}"
+          - "Target VM: {{ vm_name_final }}"
+          - "Target Namespace: {{ vm_namespace_final }}"
+
     - name: Collect current VM information
       ansible.builtin.include_role:
         name: infra.openshift_virtualization_ops.vm_collect
@@ -55,9 +64,43 @@
           name: "{{ vm_name_final }}"
           namespace: "{{ vm_namespace_final }}"
 
-    - name: Filter to target VM and extract current instance type
+    - name: Check if VM collection succeeded
+      ansible.builtin.fail:
+        msg: |
+          VM collection failed. The 'collected_vms' variable was not defined.
+          This may indicate:
+          1. Authentication failure with OpenShift cluster
+          2. Network connectivity issues
+          3. Missing permissions for the service account
+          4. Incorrect OpenShift host URL
+      when: collected_vms is not defined
+
+    - name: Debug collected VMs
+      ansible.builtin.debug:
+        msg:
+          - "Collected VMs count: {{ collected_vms | length }}"
+          - "Looking for VM: {{ vm_name_final }} in namespace: {{ vm_namespace_final }}"
+          - "Available VMs: {{ collected_vms | map(attribute='response_obj.metadata.name') | list if collected_vms else 'None found' }}"
+
+    - name: Filter to target VM
       ansible.builtin.set_fact:
-        target_vm: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list | first }}"
+        target_vm_list: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list }}"
+
+    - name: Check if VM was found
+      ansible.builtin.fail:
+        msg: |
+          VM '{{ vm_name_final }}' not found in namespace '{{ vm_namespace_final }}'.
+          Available VMs in namespace: {{ collected_vms | map(attribute='response_obj.metadata.name') | list | join(', ') if collected_vms else 'None' }}
+          Please verify:
+          1. VM name is correct: {{ vm_name_final }}
+          2. VM namespace is correct: {{ vm_namespace_final }}
+          3. VM exists and is accessible
+          4. Authentication credentials have proper permissions
+      when: target_vm_list | length == 0
+
+    - name: Extract target VM
+      ansible.builtin.set_fact:
+        target_vm: "{{ target_vm_list | first }}"
 
     - name: Extract current instance type from VM
       ansible.builtin.set_fact:
@@ -178,10 +221,22 @@
               name: "{{ vm_name_final }}"
               namespace: "{{ vm_namespace_final }}"
 
+        - name: Filter updated VMs
+          ansible.builtin.set_fact:
+            updated_vm_list: "{{ updated_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list }}"
+
+        - name: Check if updated VM was found
+          ansible.builtin.fail:
+            msg: |
+              Failed to find updated VM '{{ vm_name_final }}' after scaling operation.
+              This may indicate the scaling operation did not complete successfully.
+              Available VMs: {{ updated_vms | map(attribute='response_obj.metadata.name') | list | join(', ') if updated_vms else 'None' }}
+          when: updated_vm_list | length == 0
+
         - name: Extract updated VM information
           ansible.builtin.set_fact:
-            updated_vm: "{{ updated_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list | first }}"
-            updated_instance_type: "{{ updated_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list | first | json_query('response_obj.spec.instancetype.name') }}"
+            updated_vm: "{{ updated_vm_list | first }}"
+            updated_instance_type: "{{ updated_vm_list | first | json_query('response_obj.spec.instancetype.name') }}"
 
         - name: Display scaling operation result
           ansible.builtin.debug:
