@@ -1,17 +1,10 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"monitoring.coreos.com/v1","kind":"PrometheusRule","metadata":{"annotations":{},"labels":{"role":"alert-rules"},"name":"vm-high-memory-usage","namespace":"webhook-store"},"spec":{"groups":[{"name":"VMAlerts","rules":[{"alert":"VMHighMemoryUsage","annotations":{"description":"VM {{ $labels.name }} in namespace {{ $labels.namespace }} is using more than 80% of its available memory.","summary":"High memory usage on VM"},"expr":"(\n  kubevirt_vmi_memory_used_bytes{namespace=\"webhook-store\"}\n  /\n  kubevirt_vmi_memory_available_bytes{namespace=\"webhook-store\"}\n) * 100 \u003e 80\n","for":"10s","labels":{"severity":"critical"}}]}]}}
-  creationTimestamp: "2025-08-15T00:16:09Z"
-  generation: 2
   labels:
     role: alert-rules
   name: vm-high-memory-usage
   namespace: webhook-store
-  resourceVersion: "7178985"
-  uid: ea8b91cf-bfed-4fa4-af37-b91ef8f7b7dd
 spec:
   groups:
   - name: VMAlerts
@@ -22,11 +15,13 @@ spec:
           using more than 80% of its available memory.
         summary: High memory usage on VM
       expr: |
-        (
-          kubevirt_vmi_memory_used_bytes{namespace="webhook-store"}
-          /
-          kubevirt_vmi_memory_available_bytes{namespace="webhook-store"}
-        ) * 100 > 80
+         ( 
+         kubevirt_vmi_memory_used_bytes{ namespace="webhook-store",
+                                           name="rhel-8-brown-stork-74"} 
+                                           / 
+          kubevirt_vmi_memory_available_bytes{ namespace="webhook-store",
+                                               name="rhel-8-brown-stork-74"} 
+          ) * 100 > 80
       for: 10s
       labels:
         severity: critical
