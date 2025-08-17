@@ -46,6 +46,14 @@ Create these 4 job templates in AAP:
 - **Name**: "VM Scaling with Approval"
 - **Organization**: Default
 - **Inventory**: Localhost
+- **🔥 CRITICAL**: Enable **"Prompt on Launch"** for **"Extra Variables"**
+
+**Important Configuration Steps:**
+1. In the workflow template settings, check **"Prompt on Launch"** 
+2. Ensure **"Extra Variables"** is selected in the prompt options
+3. This allows the trigger job to pass variables to the workflow
+
+📋 **For detailed step-by-step instructions, see: `WORKFLOW-TEMPLATE-CONFIG.md`**
 
 #### 2.2 Workflow Design
 ```
@@ -230,5 +238,15 @@ EDA/Manual Input → Request Job → Workflow Variables → Execute Job
 - **"ansible_date_time is undefined"**: Playbook uses `gather_facts: false` for performance
 - **"namespace conflicts"**: Playbook uses safe variable aliases to avoid Jinja2 conflicts
 - **"Missing variables"**: Check EDA webhook payload and job template variable passing
+- **"Variables not allowed on launch"**: Enable "Prompt on Launch" → "Extra Variables" on workflow template
+
+### Workflow Template Configuration Issues
+- **HTTP 400: "Variables not allowed on launch"**: 
+  1. Edit your workflow template "VM Scaling with Approval"
+  2. Go to **Settings** → **Prompt on Launch**
+  3. Check ✅ **"Extra Variables"**
+  4. Save the template
+- **Workflow not found**: Verify workflow template name matches exactly: "VM Scaling with Approval"
+- **Permission denied**: User must have execute permission on workflow template
 
 This approach provides enterprise-grade approval workflows while maintaining all the technical capabilities of the original scaling solution.
