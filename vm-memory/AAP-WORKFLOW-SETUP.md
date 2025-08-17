@@ -264,6 +264,12 @@ EDA/Manual Input → Request Job → Workflow Variables → Execute Job
 - **"Missing variables"**: Check EDA webhook payload and job template variable passing
 - **"Variables not allowed on launch"**: Enable "Prompt on Launch" → "Extra Variables" on workflow template
 
+### Collection/Filter Issues
+- **"Could not load json_query"** or **"unable to locate collection community.general"**:
+  - **Root Cause**: Execution environment missing `community.general` collection
+  - **Solution**: Playbooks now use native Jinja2 filters instead of `json_query`
+  - **Alternative**: Add `community.general` collection to your execution environment
+
 ### Workflow Template Configuration Issues
 - **HTTP 400: "Variables not allowed on launch"**: 
   1. Edit your workflow template "VM Scaling with Approval"

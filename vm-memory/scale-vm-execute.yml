@@ -52,7 +52,10 @@
         - name: Extract current VM details
           ansible.builtin.set_fact:
             target_vm: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list | first }}"
-            current_instance_type: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list | first | json_query('response_obj.spec.instancetype.name') }}"
+
+        - name: Extract instance type from VM spec
+          ansible.builtin.set_fact:
+            current_instance_type: "{{ target_vm.response_obj.spec.instancetype.name | default('unknown') }}"
 
         - name: Get available instance types
           kubernetes.core.k8s_info:
@@ -161,7 +164,10 @@
         - name: Extract updated VM information
           ansible.builtin.set_fact:
             updated_vm: "{{ updated_vm_list | first }}"
-            updated_instance_type: "{{ updated_vm_list | first | json_query('response_obj.spec.instancetype.name') }}"
+
+        - name: Extract updated instance type
+          ansible.builtin.set_fact:
+            updated_instance_type: "{{ updated_vm.response_obj.spec.instancetype.name | default('unknown') }}"
 
         - name: Display scaling operation result
           ansible.builtin.debug:

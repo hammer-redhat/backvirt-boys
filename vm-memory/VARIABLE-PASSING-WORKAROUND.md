@@ -107,6 +107,19 @@ Variables Source: Direct (Workaround)
 4. ✅ Proceeds with hot-plug scaling
 5. ✅ Verifies scaling success
 
+## 🔧 **Additional Fixes Applied**
+
+### **1. Removed json_query Dependencies**
+- **Issue**: `community.general` collection not available in execution environment
+- **Error**: `Could not load "json_query": unable to locate collection community.general`
+- **Fix**: Replaced `json_query` filters with native Jinja2 dot notation
+- **Result**: Playbooks work with minimal collection requirements
+
+### **2. Split Complex Operations**
+- Separated VM data extraction into multiple tasks for clarity
+- Each task handles one specific data extraction operation
+- Easier debugging and troubleshooting
+
 ## 🔄 **Future Improvements**
 
 When the `set_stats` variable passing is fixed in your AAP environment:
