@@ -287,6 +287,7 @@ EDA/Manual Input → Request Job → Workflow Variables → Execute Job
   - **Check Logs**: Look for "=== SETTING WORKFLOW VARIABLES ===" and "=== ALL AVAILABLE VARIABLES ==="
   - **Expected Variables**: `vm_namespace_approved`, `vm_name_approved`, `target_instance_type_approved`
 
-📋 **For detailed debugging steps, see: `WORKFLOW-NODE-CONFIG.md`**
+📋 **For detailed debugging steps, see: `WORKFLOW-NODE-CONFIG.md`**  
+📋 **For variable passing workaround, see: `VARIABLE-PASSING-WORKAROUND.md`**
 
 This approach provides enterprise-grade approval workflows while maintaining all the technical capabilities of the original scaling solution.

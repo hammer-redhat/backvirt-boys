@@ -38,22 +38,70 @@
         current_instance_type: "{{ current_instance_type_approved | default('unknown') }}"
         scaling_required: "{{ scaling_required | default(true) | bool }}"
 
-    - name: Validate approved variables
+    - name: Workaround - Get VM info and determine scaling plan (since approved variables not available)
+      block:
+        - name: Collect current VM information to determine instance type
+          ansible.builtin.include_role:
+            name: infra.openshift_virtualization_ops.vm_collect
+          vars:
+            vm_collect_vms_var: collected_vms
+            vm_collect_request_instance:
+              name: "{{ vm_name_final }}"
+              namespace: "{{ vm_namespace_final }}"
+
+        - name: Extract current VM details
+          ansible.builtin.set_fact:
+            target_vm: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list | first }}"
+            current_instance_type: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list | first | json_query('response_obj.spec.instancetype.name') }}"
+
+        - name: Get available instance types
+          kubernetes.core.k8s_info:
+            api_version: instancetype.kubevirt.io/v1beta1
+            kind: VirtualMachineClusterInstancetype
+            host: "{{ openshift_host }}"
+            api_key: "{{ openshift_api_key }}"
+            verify_ssl: "{{ openshift_verify_ssl }}"
+          register: cluster_instance_types
+
+        - name: Determine next instance type (auto-progression)
+          ansible.builtin.set_fact:
+            target_instance_type: "{{ instance_type_progression[current_instance_type] | default(current_instance_type) }}"
+          vars:
+            instance_type_progression:
+              u1.nano: u1.micro
+              u1.micro: u1.small
+              u1.small: u1.medium
+              u1.medium: u1.large
+              u1.large: u1.xlarge
+              u1.xlarge: u1.2xlarge
+              u1.2xlarge: u1.4xlarge
+              u1.4xlarge: u1.8xlarge
+          when: target_instance_type == ''
+
+        - name: Update scaling status
+          ansible.builtin.set_fact:
+            scaling_required: "{{ target_instance_type != current_instance_type }}"
+
+      when: target_instance_type == ''
+
+    - name: Validate final variables
       ansible.builtin.assert:
         that:
           - vm_name_final != ''
           - vm_namespace_final != ''
           - target_instance_type != ''
-        fail_msg: "Missing required approval variables. This job should be run after the approval workflow."
+        fail_msg: "Missing required variables for VM scaling execution."
 
     - name: Display scaling execution start
       ansible.builtin.debug:
         msg:
-          - "========== EXECUTING APPROVED VM SCALING =========="
+          - "========== EXECUTING VM SCALING =========="
           - "VM: {{ vm_name_final }}"
           - "Namespace: {{ vm_namespace_final }}"
           - "Current Instance Type: {{ current_instance_type }}"
           - "Target Instance Type: {{ target_instance_type }}"
+          - "Scaling Required: {{ scaling_required }}"
+          - "Variables Source: {{ 'Approved (from Request Job)' if vm_name_approved is defined else 'Direct (Workaround)' }}"
           - "Starting scaling operation..."
 
     - name: Skip scaling if no change needed
