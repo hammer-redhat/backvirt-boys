@@ -215,9 +215,20 @@ EDA/Manual Input → Request Job → Workflow Variables → Execute Job
 
 ## 🚨 Troubleshooting
 
+### Common Job Template Issues
 - **VM Not Found**: Check namespace and VM name in request job output
 - **Approval Timeout**: Extend timeout in approval node settings
 - **Scaling Failures**: Review execute job logs for detailed errors
 - **EDA Issues**: Verify webhook URL and EDA rulebook syntax
+
+### Authentication Issues
+- **"Bearer token not supported"**: Create OAuth token in AAP (see `CREATE-AAP-TOKEN.md`)
+- **"Authentication failed"**: Verify token/credentials and `CONTROLLER_HOST` format
+- **"Permission denied"**: Check user permissions and workflow template access
+
+### Variable Issues
+- **"ansible_date_time is undefined"**: Playbook uses `gather_facts: false` for performance
+- **"namespace conflicts"**: Playbook uses safe variable aliases to avoid Jinja2 conflicts
+- **"Missing variables"**: Check EDA webhook payload and job template variable passing
 
 This approach provides enterprise-grade approval workflows while maintaining all the technical capabilities of the original scaling solution.

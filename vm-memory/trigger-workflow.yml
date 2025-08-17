@@ -22,6 +22,7 @@
         vm_namespace_safe: "{{ namespace | default(vm_namespace) | default('') }}"
         severity_safe: "{{ severity | default('unknown') }}"
         description_safe: "{{ description | default('EDA triggered scaling') }}"
+        current_timestamp: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: Debug received variables
       ansible.builtin.debug:
@@ -130,7 +131,7 @@
             severity: "{{ severity_safe }}"
             description: "{{ description_safe }}"
             triggered_by: "EDA"
-            triggered_at: "{{ ansible_date_time.iso8601 }}"
+            triggered_at: "{{ current_timestamp }}"
         status_code: [201, 202]
       register: workflow_launch_response
       when: aap_controller_token != ''
@@ -153,7 +154,7 @@
             severity: "{{ severity_safe }}"
             description: "{{ description_safe }}"
             triggered_by: "EDA"
-            triggered_at: "{{ ansible_date_time.iso8601 }}"
+            triggered_at: "{{ current_timestamp }}"
         status_code: [201, 202]
       register: workflow_launch_response_basic
       when: aap_controller_token == '' and aap_controller_password != ''
@@ -194,6 +195,6 @@
         data:
           triggered_workflow_id: "{{ workflow_launch_response.json.id }}"
           triggered_workflow_url: "{{ aap_controller_host }}/#/jobs/workflow/{{ workflow_launch_response.json.id }}"
-          triggered_at: "{{ ansible_date_time.iso8601 }}"
+          triggered_at: "{{ current_timestamp }}"
           vm_name: "{{ vm_name_safe }}"
           vm_namespace: "{{ vm_namespace_safe }}"
