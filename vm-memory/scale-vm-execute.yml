@@ -213,4 +213,4 @@
           - "Namespace: {{ vm_namespace_final }}"
           - "Operation: {{ 'Completed Successfully' if scaling_required else 'No Action Required' }}"
           - "Instance Type: {{ current_instance_type }} → {{ target_instance_type if scaling_required else current_instance_type }}"
-          - "Timestamp: {{ ansible_date_time.iso8601 }}"
+          - "Timestamp: {{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"

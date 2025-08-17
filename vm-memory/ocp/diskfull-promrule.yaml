@@ -1,0 +1,32 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vm-disk-nearly-full
+  namespace: webhook-store
+  labels:
+    role: alert-rules
+spec:
+  groups:
+    - name: VMAlerts
+      rules:
+        - alert: VMDiskNearlyFull
+          expr: |
+            (
+              kubevirt_vmi_filesystem_used_bytes{
+                namespace="webhook-store",
+                name="rhel-8-brown-stork-74",
+                mount_point="/"
+              }
+              /
+              kubevirt_vmi_filesystem_capacity_bytes{
+                namespace="webhook-store",
+                name="rhel-8-brown-stork-74",
+                mount_point="/"
+              }
+            ) * 100 > 90
+          for: 10s
+          labels:
+            severity: critical
+          annotations:
+            summary: "VM {{ $labels.name }} has low disk space"
+            description: "VM {{ $labels.name }} in namespace {{ $labels.namespace }} has used more than 90% of its root filesystem (/)."
