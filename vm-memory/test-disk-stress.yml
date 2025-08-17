@@ -8,10 +8,10 @@
   become: true
   vars:
     # Safe test parameters - only use small amount for testing
-    stress_disk_percentage: 5   # Very small for testing
+    stress_disk_percentage: 90   # Very small for testing
     stress_disk_path: "/tmp"
     stress_file_name: "test_disk_stress_small.img" 
-    stress_timeout: "10s"  # Very short duration for testing
+    stress_timeout: "3600s"  # Very short duration for testing
     
   tasks:
     - name: Display test information
