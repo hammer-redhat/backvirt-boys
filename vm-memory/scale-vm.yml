@@ -200,37 +200,30 @@
           - "Target Instance Type: {{ final_instance_type }}"
           - "Scaling Direction: {{ 'Upgrade' if final_instance_type != current_instance_type else 'No Change' }}"
 
-    # Step 4: Request approval for scaling operation
-    - name: Request approval for VM instance type upgrade
-      ansible.builtin.pause:
-        prompt: |
-          
-          ================== VM SCALING APPROVAL REQUEST ==================
-          
-          VM Details:
-            Name: {{ vm_name_final }}
-            Namespace: {{ vm_namespace_final }}
-            Current Status: {{ target_vm.response_obj.status.printableStatus | default('unknown') }}
-          
-          Scaling Details:
-            Current Instance Type: {{ current_instance_type }}
-            Target Instance Type: {{ final_instance_type }}
-          
-          This operation will:
-            1. Scale the VM instance type from {{ current_instance_type }} to {{ final_instance_type }}
-            2. May cause temporary VM interruption
-            3. Resource allocation will be updated immediately
-          
-          Do you approve this VM scaling operation? (yes/no)
-      register: approval_response
+    # Step 4: Display scaling plan (approval handled by AAP workflow)
+    - name: Display VM scaling plan
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "================== VM SCALING PLAN =================="
+          - ""
+          - "VM Details:"
+          - "  Name: {{ vm_name_final }}"
+          - "  Namespace: {{ vm_namespace_final }}"
+          - "  Current Status: {{ target_vm.response_obj.status.printableStatus | default('unknown') }}"
+          - ""
+          - "Scaling Details:"
+          - "  Current Instance Type: {{ current_instance_type }}"
+          - "  Target Instance Type: {{ final_instance_type }}"
+          - ""
+          - "This operation will:"
+          - "  1. Scale the VM instance type from {{ current_instance_type }} to {{ final_instance_type }}"
+          - "  2. May cause temporary VM interruption"
+          - "  3. Resource allocation will be updated immediately"
+          - ""
+          - "Note: For approval workflow, use the AAP Workflow Template instead."
+          - "======================================================"
       when: final_instance_type != current_instance_type
-
-    - name: Check approval response
-      ansible.builtin.fail:
-        msg: "VM scaling operation was not approved or invalid response provided"
-      when: 
-        - final_instance_type != current_instance_type
-        - approval_response.user_input | lower not in ['yes', 'y']
 
     - name: Skip scaling if no change needed
       ansible.builtin.debug:
