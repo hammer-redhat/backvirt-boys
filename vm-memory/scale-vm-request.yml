@@ -133,6 +133,16 @@
           - "======================================================"
 
     # Set workflow variables for the next job
+    - name: Debug variables being passed to next workflow step
+      ansible.builtin.debug:
+        msg:
+          - "=== SETTING WORKFLOW VARIABLES ==="
+          - "vm_namespace_approved: {{ vm_namespace_final }}"
+          - "vm_name_approved: {{ vm_name_final }}"
+          - "current_instance_type_approved: {{ current_instance_type }}"
+          - "target_instance_type_approved: {{ final_instance_type }}"
+          - "scaling_required: {{ final_instance_type != current_instance_type }}"
+
     - name: Set workflow variables for scaling execution
       ansible.builtin.set_stats:
         data:
@@ -141,3 +151,7 @@
           current_instance_type_approved: "{{ current_instance_type }}"
           target_instance_type_approved: "{{ final_instance_type }}"
           scaling_required: "{{ final_instance_type != current_instance_type }}"
+
+    - name: Confirm set_stats completed
+      ansible.builtin.debug:
+        msg: "✅ Workflow variables have been set via set_stats for the next job"

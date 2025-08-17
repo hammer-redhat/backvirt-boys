@@ -26,6 +26,7 @@ Create these 4 job templates in AAP:
 #### 1.2 "VM Scale Request" Job Template
 - **Playbook**: `vm-memory/scale-vm-request.yml`
 - **Purpose**: Validates VM and displays scaling request details
+- **🔥 CRITICAL**: Enable **"Prompt on Launch"** for **"Extra Variables"**
 - **Survey Variables**:
   - `vm_name` (Text, Required)
   - `namespace` (Text, Default: "default")
@@ -34,7 +35,8 @@ Create these 4 job templates in AAP:
 #### 1.3 "VM Scale Execute" Job Template  
 - **Playbook**: `vm-memory/scale-vm-execute.yml`
 - **Purpose**: Performs the actual VM scaling after approval
-- **Variables**: Inherited from workflow
+- **🔥 CRITICAL**: Enable **"Prompt on Launch"** for **"Extra Variables"**
+- **Variables**: Inherited from workflow via set_stats
 
 #### 1.4 "VM Scale Complete" Job Template (Optional)
 - **Playbook**: `vm-memory/scale-vm.yml` (complete workflow in one job)
@@ -55,7 +57,27 @@ Create these 4 job templates in AAP:
 
 📋 **For detailed step-by-step instructions, see: `WORKFLOW-TEMPLATE-CONFIG.md`**
 
-#### 2.2 Workflow Design
+#### 2.2 Configure Variable Passing Between Workflow Nodes
+
+**🔥 CRITICAL - ALL Job Templates Need Extra Variables Enabled:**
+
+1. **"VM Scale Request" Job Template**:
+   - Edit template → **Prompt on Launch** → ✅ **Extra Variables**
+
+2. **"VM Scale Execute" Job Template**:  
+   - Edit template → **Prompt on Launch** → ✅ **Extra Variables**
+
+3. **Workflow Template**:
+   - Edit template → **Prompt on Launch** → ✅ **Extra Variables**
+
+**Variable Flow:**
+```
+Trigger Job → Workflow → VM Scale Request → set_stats → VM Scale Execute
+     ↓            ↓           ↓                ↓            ↓
+  EDA vars → extra_vars → validates VM → approved vars → scaling
+```
+
+#### 2.3 Workflow Design
 ```
 ┌─────────────────────┐
 │  VM Scale Request   │
@@ -75,7 +97,7 @@ Create these 4 job templates in AAP:
 └─────────────────────┘
 ```
 
-#### 2.3 Workflow Node Configuration
+#### 2.4 Workflow Node Configuration
 
 **Node 1: VM Scale Request**
 - **Type**: Job Template
@@ -95,6 +117,8 @@ Create these 4 job templates in AAP:
 - **Type**: Job Template  
 - **Job Template**: "VM Scale Execute"
 - **Convergence**: Any
+- **🔥 CRITICAL**: Configure to **"Always"** run (not just on success)
+- **🔥 CRITICAL**: Ensure variables are passed from previous node
 
 ### Step 3: Configure EDA Integration
 
@@ -248,5 +272,21 @@ EDA/Manual Input → Request Job → Workflow Variables → Execute Job
   4. Save the template
 - **Workflow not found**: Verify workflow template name matches exactly: "VM Scaling with Approval"
 - **Permission denied**: User must have execute permission on workflow template
+
+### Variable Passing Issues Between Workflow Nodes
+- **"Missing required approval variables"** in VM Scale Execute job:
+  1. **Enable Extra Variables** on "VM Scale Execute" job template:
+     - Edit job template → **Prompt on Launch** → ✅ **Extra Variables**
+  2. **Verify VM Scale Request** job completed successfully and used `set_stats`
+  3. **Check workflow node configuration** - variables should flow between nodes
+  4. **Debug the variable flow**: See detailed guide in `WORKFLOW-NODE-CONFIG.md`
+
+- **"target_instance_type != ''" assertion failed**:
+  - **Root Cause**: Variables from "VM Scale Request" not reaching "VM Scale Execute"
+  - **Debug Steps**: Both job templates now include detailed debug output
+  - **Check Logs**: Look for "=== SETTING WORKFLOW VARIABLES ===" and "=== ALL AVAILABLE VARIABLES ==="
+  - **Expected Variables**: `vm_namespace_approved`, `vm_name_approved`, `target_instance_type_approved`
+
+📋 **For detailed debugging steps, see: `WORKFLOW-NODE-CONFIG.md`**
 
 This approach provides enterprise-grade approval workflows while maintaining all the technical capabilities of the original scaling solution.

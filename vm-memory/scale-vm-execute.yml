@@ -14,6 +14,22 @@
     openshift_verify_ssl: "{{ vm_collect_openshift_verify_ssl }}"
 
   tasks:
+    - name: Debug all available variables
+      ansible.builtin.debug:
+        msg:
+          - "=== ALL AVAILABLE VARIABLES ==="
+          - "vm_namespace_approved: {{ vm_namespace_approved | default('NOT SET') }}"
+          - "vm_name_approved: {{ vm_name_approved | default('NOT SET') }}"
+          - "target_instance_type_approved: {{ target_instance_type_approved | default('NOT SET') }}"
+          - "current_instance_type_approved: {{ current_instance_type_approved | default('NOT SET') }}"
+          - "scaling_required: {{ scaling_required | default('NOT SET') }}"
+          - ""
+          - "Fallback variables:"
+          - "vm_namespace: {{ vm_namespace | default('NOT SET') }}"
+          - "vm_name: {{ vm_name | default('NOT SET') }}"
+          - "namespace: {{ namespace | default('NOT SET') }}"
+          - "new_instance_type: {{ new_instance_type | default('NOT SET') }}"
+
     - name: Use workflow variables from approval step
       ansible.builtin.set_fact:
         vm_namespace_final: "{{ vm_namespace_approved | default(vm_namespace) | default(namespace) | default('default') }}"
