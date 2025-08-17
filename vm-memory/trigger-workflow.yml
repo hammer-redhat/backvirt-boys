@@ -15,19 +15,36 @@
     organization_name: "{{ organization | default('Default') }}"
 
   tasks:
+    - name: Set safe variable names to avoid Jinja2 conflicts
+      ansible.builtin.set_fact:
+        vm_name_safe: "{{ vm_name | default('') }}"
+        vm_namespace_safe: "{{ namespace | default(vm_namespace) | default('') }}"
+        severity_safe: "{{ severity | default('unknown') }}"
+        description_safe: "{{ description | default('EDA triggered scaling') }}"
+
+    - name: Debug received variables
+      ansible.builtin.debug:
+        msg:
+          - "=== RECEIVED VARIABLES FROM EDA ==="
+          - "vm_name: '{{ vm_name_safe }}'"
+          - "namespace: '{{ vm_namespace_safe }}'"
+          - "severity: '{{ severity_safe }}'"
+          - "description: '{{ description_safe }}'"
+          - "workflow_name: '{{ workflow_template_name }}'"
+          - "aap_controller_host: '{{ aap_controller_host }}'"
+          - "aap_controller_password: {{ 'SET' if aap_controller_password else 'NOT SET' }}"
+
     - name: Validate required variables
       ansible.builtin.assert:
         that:
-          - vm_name is defined
-          - vm_name != ''
-          - namespace is defined
-          - namespace != ''
+          - vm_name_safe != ''
+          - vm_namespace_safe != ''
           - aap_controller_host != ''
           - aap_controller_password != ''
         fail_msg: |
           Missing required variables:
-          - vm_name: {{ vm_name | default('NOT PROVIDED') }}
-          - namespace: {{ namespace | default('NOT PROVIDED') }}
+          - vm_name: {{ vm_name_safe | default('NOT PROVIDED') }}
+          - namespace: {{ vm_namespace_safe | default('NOT PROVIDED') }}
           - CONTROLLER_HOST: {{ aap_controller_host | default('NOT PROVIDED') }}
           - CONTROLLER_PASSWORD: {{ 'SET' if aap_controller_password else 'NOT PROVIDED' }}
 
@@ -38,9 +55,9 @@
           - "Controller: {{ aap_controller_host }}"
           - "Workflow: {{ workflow_template_name }}"
           - "Organization: {{ organization_name }}"
-          - "VM Name: {{ vm_name }}"
-          - "Namespace: {{ namespace }}"
-          - "Severity: {{ severity | default('unknown') }}"
+          - "VM Name: {{ vm_name_safe }}"
+          - "Namespace: {{ vm_namespace_safe }}"
+          - "Severity: {{ severity_safe }}"
 
     # Get workflow template ID
     - name: Get workflow template information
@@ -84,10 +101,10 @@
         body_format: json
         body:
           extra_vars:
-            vm_name: "{{ vm_name }}"
-            namespace: "{{ namespace }}"
-            severity: "{{ severity | default('unknown') }}"
-            description: "{{ description | default('VM scaling triggered by EDA webhook') }}"
+            vm_name: "{{ vm_name_safe }}"
+            namespace: "{{ vm_namespace_safe }}"
+            severity: "{{ severity_safe }}"
+            description: "{{ description_safe }}"
             triggered_by: "EDA"
             triggered_at: "{{ ansible_date_time.iso8601 }}"
         status_code: [201, 202]
@@ -126,5 +143,5 @@
           triggered_workflow_id: "{{ workflow_launch_response.json.id }}"
           triggered_workflow_url: "{{ aap_controller_host }}/#/jobs/workflow/{{ workflow_launch_response.json.id }}"
           triggered_at: "{{ ansible_date_time.iso8601 }}"
-          vm_name: "{{ vm_name }}"
-          vm_namespace: "{{ namespace }}"
+          vm_name: "{{ vm_name_safe }}"
+          vm_namespace: "{{ vm_namespace_safe }}"

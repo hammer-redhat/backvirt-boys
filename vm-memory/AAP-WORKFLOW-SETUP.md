@@ -122,6 +122,10 @@ CONTROLLER_PASSWORD=your-aap-password
 CONTROLLER_VERIFY_SSL=false
 ```
 
+**Important:** 
+- `CONTROLLER_HOST` should be the base URL only (e.g., `https://aap.example.com`)
+- Do NOT include `/api/controller/` or other paths - these are added by the playbook
+
 **Option B: Custom Credential Type**
 Create a custom credential type in AAP with these fields and attach to the trigger job template.
 
