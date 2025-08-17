@@ -26,7 +26,7 @@
   tasks:
     - name: Set default values for variables
       ansible.builtin.set_fact:
-        vm_namespace_final: "{{ vm_namespace | default('default') }}"
+        vm_namespace_final: "{{ vm_namespace | default(namespace) | default('default') }}"
         vm_name_final: "{{ vm_name | default('') }}"
         new_instance_type_final: "{{ new_instance_type | default('') }}"
 
@@ -86,11 +86,55 @@
       ansible.builtin.set_fact:
         target_vm_list: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list }}"
 
+    - name: Search for VM in all accessible namespaces (when not found in specified namespace)
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        host: "{{ openshift_host }}"
+        api_key: "{{ openshift_api_key }}"
+        verify_ssl: "{{ openshift_verify_ssl }}"
+      register: all_vms_search
+      when: target_vm_list | length == 0
+
+    - name: Find VM in other namespaces
+      ansible.builtin.set_fact:
+        vm_found_in_namespaces: "{{ all_vms_search.resources | selectattr('metadata.name', 'equalto', vm_name_final) | map(attribute='metadata.namespace') | list }}"
+      when: target_vm_list | length == 0
+
+    - name: Debug all accessible VMs (when VM not found)
+      ansible.builtin.debug:
+        msg:
+          - "=== VM DISCOVERY DEBUG ==="
+          - "Searched for VM: {{ vm_name_final }}"
+          - "In namespace: {{ vm_namespace_final }}"
+          - "Total accessible VMs found: {{ all_vms_search.resources | length if all_vms_search.resources is defined else 0 }}"
+          - "All accessible VMs:"
+      when: target_vm_list | length == 0
+
+    - name: Display each accessible VM with its namespace
+      ansible.builtin.debug:
+        msg: "  - {{ item.metadata.name }} (namespace: {{ item.metadata.namespace }})"
+      loop: "{{ all_vms_search.resources | default([]) }}"
+      when: 
+        - target_vm_list | length == 0
+        - all_vms_search.resources is defined
+
     - name: Check if VM was found
       ansible.builtin.fail:
         msg: |
           VM '{{ vm_name_final }}' not found in namespace '{{ vm_namespace_final }}'.
-          Available VMs in namespace: {{ collected_vms | map(attribute='response_obj.metadata.name') | list | join(', ') if collected_vms else 'None' }}
+          Available VMs in specified namespace ({{ vm_namespace_final }}): {{ collected_vms | map(attribute='response_obj.metadata.name') | list | join(', ') if collected_vms else 'None' }}
+          
+          {% if vm_found_in_namespaces is defined and vm_found_in_namespaces | length > 0 %}
+          ✅ FOUND: VM '{{ vm_name_final }}' exists in namespace(s): {{ vm_found_in_namespaces | join(', ') }}
+          
+          🔧 SOLUTION: Update your job template variables:
+             - vm_namespace: {{ vm_found_in_namespaces | first }}
+             - vm_name: {{ vm_name_final }}
+          {% else %}
+          ❌ VM '{{ vm_name_final }}' not found in any accessible namespace.
+          {% endif %}
+          
           Please verify:
           1. VM name is correct: {{ vm_name_final }}
           2. VM namespace is correct: {{ vm_namespace_final }}
