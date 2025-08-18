@@ -1,0 +1,23 @@
+- name: Deploy Hypershift cluster
+  host: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    project_namespace: clusters
+    clusterset: default
+    etcd_storage_size: 8Gi
+    etcd_storage_class: nfs-csi
+    cluster_network_cidr: 10.132.0.0/14
+    service_network_cidr: 172.31.0.0/16
+    # worker node settings
+    worker_replicas: 2
+    worker_cores: 2
+    worker_memory: 16Gi
+    worker_disk: 32Gi
+
+  tasks:
+    - name: Deploy Hypershift cluster
+      host: localhost
+      kubernetes.core.k8s:
+      state: present
+      definition: "{{ lookup('hypershift_cluster.yml.j2') | from_yaml_all }}"
