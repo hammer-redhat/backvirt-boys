@@ -1,6 +1,6 @@
 ---
 - name: Deploy Hypershift cluster
-  host: localhost
+  hosts: localhost
   connection: local
   gather_facts: false
   vars:
@@ -18,7 +18,6 @@
 
   tasks:
     - name: Deploy Hypershift cluster
-      host: localhost
       kubernetes.core.k8s:
         state: present
-        definition: "{{ lookup('hypershift_cluster.yml.j2') | from_yaml_all }}"
+        definition: "{{ lookup('template', 'hypershift_cluster.yml.j2') | from_yaml_all }}"
