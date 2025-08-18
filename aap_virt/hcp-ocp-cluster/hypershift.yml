@@ -2,7 +2,7 @@
 - name: Deploy Hypershift cluster
   host: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
   vars:
     project_namespace: clusters
     clusterset: default
