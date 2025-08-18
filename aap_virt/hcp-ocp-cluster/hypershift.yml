@@ -1,3 +1,4 @@
+---
 - name: Deploy Hypershift cluster
   host: localhost
   connection: local
@@ -19,5 +20,5 @@
     - name: Deploy Hypershift cluster
       host: localhost
       kubernetes.core.k8s:
-      state: present
-      definition: "{{ lookup('hypershift_cluster.yml.j2') | from_yaml_all }}"
+        state: present
+        definition: "{{ lookup('hypershift_cluster.yml.j2') | from_yaml_all }}"
