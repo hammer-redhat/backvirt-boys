@@ -11,8 +11,7 @@
     cluster_network_cidr: 10.132.0.0/14
     service_network_cidr: 172.31.0.0/16
     # worker node settings
-    worker_replicas: 2
-    worker_cores: 2
+    worker_cores: 4
     worker_memory: 16Gi
     worker_disk: 32Gi
 
