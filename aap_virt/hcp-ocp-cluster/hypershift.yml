@@ -14,7 +14,7 @@
     worker_cores: 4
     worker_memory: 16Gi
     worker_disk: 32Gi
-    offline_token: "{{ token }}"
+    offline_token: "{{ token.token }}"
 
 
   tasks:
