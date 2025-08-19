@@ -14,14 +14,8 @@
     worker_cores: 4
     worker_memory: 16Gi
     worker_disk: 32Gi
+    offline_token: "{{ token }}"
 
-  tasks:
-    - name: Get Red Hat API access tokens
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  vars:
-    offline_token: "{{ token }}"   # comes from your Vault credential
 
   tasks:
     - name: Request short-lived bearer token from SSO
