@@ -23,10 +23,42 @@
 
 
   tasks:
+    - name: Check if cluster already exists
+      kubernetes.core.k8s_info:
+        api_version: cluster.x-k8s.io/v1beta1
+        kind: Cluster
+        name: "{{ cluster_name }}"
+        namespace: "{{ project_namespace }}-{{ cluster_name }}"
+      register: existing_cluster
+      ignore_errors: true
+
+    - name: Display cluster status if exists
+      debug:
+        msg: |
+          ================================
+          EXISTING CLUSTER FOUND
+          ================================
+          Cluster {{ cluster_name }} already exists in namespace {{ project_namespace }}-{{ cluster_name }}
+          Current Phase: {{ existing_cluster.resources[0].status.phase | default('Unknown') }}
+          Skipping deployment...
+      when: existing_cluster.resources | length > 0
+
+    - name: Display deployment start message
+      debug:
+        msg: |
+          ================================
+          DEPLOYING NEW CLUSTER
+          ================================
+          Deploying new Hypershift cluster: {{ cluster_name }}
+          Namespace: {{ project_namespace }}-{{ cluster_name }}
+          This may take several minutes...
+      when: existing_cluster.resources | length == 0
+
     - name: Deploy Hypershift cluster
       kubernetes.core.k8s:
         state: present
         definition: "{{ lookup('template', 'hypershift_cluster.yml.j2') | from_yaml_all }}"
+      when: existing_cluster.resources | length == 0
 
     - name: Wait for cluster to be created
       kubernetes.core.k8s_info:
@@ -40,6 +72,7 @@
           status: "True"
         wait_timeout: 1800  # 30 minutes
       register: cluster_info
+      when: existing_cluster.resources | length == 0
 
     - name: Get cluster status
       kubernetes.core.k8s_info:
