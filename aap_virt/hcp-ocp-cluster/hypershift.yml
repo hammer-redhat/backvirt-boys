@@ -16,6 +16,40 @@
     worker_disk: 32Gi
 
   tasks:
+    - name: Get Red Hat API access tokens
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    offline_token: "{{ token }}"   # comes from your Vault credential
+
+  tasks:
+    - name: Request short-lived bearer token from SSO
+      uri:
+        url: "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          grant_type: refresh_token
+          client_id: cloud-services
+          refresh_token: "{{ offline_token }}"
+        return_content: true
+      register: sso_response
+
+    - name: Request Red Hat registry access tokens
+      uri:
+        url: "https://api.openshift.com/api/accounts_mgmt/v1/access_token"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer {{ sso_response.json.access_token }}"
+        return_content: true
+      register: registry_tokens
+
+    - name: Store registry tokens JSON as fact
+      set_fact:
+        rh_registry_tokens: "{{ registry_tokens.json }}"
+
     - name: Deploy Hypershift cluster
       kubernetes.core.k8s:
         state: present

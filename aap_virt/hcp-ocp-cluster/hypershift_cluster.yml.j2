@@ -58,7 +58,7 @@ metadata:
   name: pullsecret-cluster-{{ cluster_name }}
   namespace: {{ project_namespace }}
 stringData:
-  '.dockerconfigjson': {{ dockerconfigjson | quote }}
+  '.dockerconfigjson': {{ rh_registry_tokens | quote }}
 type: kubernetes.io/dockerconfigjson
 ---
 apiVersion: v1
