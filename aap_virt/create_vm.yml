@@ -244,6 +244,7 @@
 
 
     - name: Create a VirtualMachine with a DataVolume template
+      ignore_errors: yes
       redhat.openshift_virtualization.kubevirt_vm:
         state: "{{ vm_state }}"
         name: "{{ vm_name }}"
@@ -281,6 +282,5 @@
                   ssh_pwauth: true
               name: cloudinitdisk
         wait: false 
-        ignore_errors: yes
 
         
