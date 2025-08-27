@@ -280,6 +280,7 @@
                     expire: false
                   ssh_pwauth: true
               name: cloudinitdisk
-        wait: true
-        wait_timeout: 600
+        wait: false 
+        ignore_errors: yes
+
         
