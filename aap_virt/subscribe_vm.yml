@@ -8,4 +8,3 @@
         state: present
         org_id: "{{ org_id }}"
         activationkey: "{{ activationkey }}"
-        auto_attach: true
