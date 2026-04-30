@@ -8,3 +8,12 @@
         state: present
         org_id: "{{ org_id }}"
         activationkey: "{{ activationkey }}"
+
+    - name: Install Red Hat Insights-client.
+      ansible.builtin.dnf: 
+        name: insights-client
+        state: present
+
+    - name: Register Red Hat Insights-client with tags. 
+      ansible.builtin.command: 
+        cmd: insights-client --register --group="{{ insights_group }}"
