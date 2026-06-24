@@ -267,7 +267,23 @@
                 resources: {}
         spec:
           domain:
-            devices: {}
+            devices:
+              interfaces:
+                - name: default
+                  model: "{{ vm_nic_model | default('virtio') }}"
+                  {% if vm_network_name is defined and vm_network_name != '' %}
+                  bridge: {}
+                  {% else %}
+                  masquerade: {}
+                  {% endif %}
+          networks:
+            - name: default
+              {% if vm_network_name is defined and vm_network_name != '' %}
+              multus:
+                networkName: "{{ vm_network_name }}"
+              {% else %}
+              pod: {}
+              {% endif %}
           volumes:
             - dataVolume:
                 name: "{{ vm_name }}"
