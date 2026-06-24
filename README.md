@@ -10,6 +10,7 @@ The **BackVirt Boys** project deploys a complete developer environment with the 
 - **💻 Red Hat OpenShift Dev Spaces** - Cloud-native development environments
 - **📦 NFS Storage Provisioner** - Persistent storage solution
 - **🏠 Red Hat Developer Hub (RHDH)** - Developer portal and backstage interface
+- **🔧 GitHub OAuth Integration** - Automated GitHub repository management and OAuth token handling
 
 ## 🏗️ Architecture
 
@@ -54,9 +55,18 @@ backvirt-boys/
 │   │       ├── nfs.yaml           # NFS provisioner configuration
 │   │       └── rhdh.yaml          # RHDH instance configuration
 │   └── README.md                   # Setup documentation
-└── operator_configs/               # Standalone operator configs
-    ├── aap.yml                     # AAP standalone deployment
-    └── devspaces.yml               # Dev Spaces standalone deployment
+├── operator_configs/               # Standalone operator configs
+│   ├── aap.yml                     # AAP standalone deployment
+│   └── devspaces.yml               # Dev Spaces standalone deployment
+├── git_repo/                       # GitHub OAuth integration tools
+│   ├── check-token-scopes.yml      # OAuth token scope validation
+│   ├── github-secrets.yml          # GitHub secrets management
+│   ├── create-github-repo-oauth.yml # GitHub repository creation with OAuth
+│   ├── setup-oauth-token.sh        # OAuth token setup script
+│   ├── github-oauth-usage.md       # OAuth usage documentation
+│   ├── github-oauth-vars.yml       # OAuth configuration variables
+│   └── git-repo-vars.yml           # Repository variables
+└── README.md                       # This file
 ```
 
 ## 🚦 Quick Start
@@ -128,6 +138,39 @@ backvirt-boys/
 - **Features**: Developer portal and backstage interface
 - **RBAC**: Custom cluster role bindings for GitOps integration
 
+## 🔐 GitHub OAuth Integration
+
+The `git_repo/` directory contains tools for automated GitHub repository management and OAuth integration:
+
+### Available Tools
+
+- **`setup-oauth-token.sh`** - Interactive script for OAuth token setup
+- **`check-token-scopes.yml`** - Ansible playbook to validate OAuth token scopes
+- **`create-github-repo-oauth.yml`** - Automated GitHub repository creation
+- **`github-secrets.yml`** - GitHub secrets management automation
+
+### Usage Example
+
+```bash
+# Navigate to git_repo directory
+cd git_repo/
+
+# Setup OAuth token
+./setup-oauth-token.sh
+
+# Check token scopes
+ansible-playbook check-token-scopes.yml
+
+# Create a new GitHub repository
+ansible-playbook create-github-repo-oauth.yml -e repo_name=my-new-repo
+```
+
+### Configuration Files
+
+- **`github-oauth-vars.yml`** - OAuth configuration variables
+- **`git-repo-vars.yml`** - Repository-specific variables
+- **`github-oauth-usage.md`** - Detailed usage documentation
+
 ## 🔐 Security & RBAC
 
 The setup implements comprehensive RBAC with:
@@ -136,6 +179,7 @@ The setup implements comprehensive RBAC with:
 - **Service account permissions** for ArgoCD controller
 - **Role-based access** for custom resource management
 - **Cluster-level permissions** where required (RHDH)
+- **OAuth token management** with proper scope validation
 
 ## 🔄 GitOps Configuration
 
@@ -186,11 +230,22 @@ Both applications are configured with:
    oc describe application operators -n openshift-gitops
    ```
 
+4. **GitHub OAuth Issues**
+   ```bash
+   # Navigate to git_repo directory
+   cd git_repo/
+   # Check token scopes
+   ansible-playbook check-token-scopes.yml
+   # Review usage documentation
+   cat github-oauth-usage.md
+   ```
+
 ### Logs and Monitoring
 
 - **ArgoCD UI**: Access via OpenShift console → ArgoCD
 - **Operator logs**: Check individual operator pod logs
 - **Custom resource events**: Use `oc describe` for detailed events
+- **GitHub OAuth logs**: Check playbook execution output
 
 ## 🤝 Contributing
 
@@ -210,6 +265,7 @@ For issues and questions:
 - Create an issue in this repository
 - Contact the BackVirt Boys team
 - Refer to Red Hat documentation for specific component issues
+- Check `git_repo/github-oauth-usage.md` for GitHub OAuth specific issues
 
 ---
 

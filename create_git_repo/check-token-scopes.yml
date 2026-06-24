@@ -1,0 +1,24 @@
+---
+- name: Check GitHub Token Scopes
+  hosts: localhost
+  gather_facts: false
+  vars:
+    github_oauth_token: "{{ github_oauth_token }}"
+  
+  tasks:
+    - name: Check token scopes
+      ansible.builtin.uri:
+        url: "https://api.github.com/user"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ github_oauth_token }}"
+          Accept: "application/vnd.github.v3+json"
+        status_code: 200
+      register: token_check
+      
+    - name: Display token scopes
+      ansible.builtin.debug:
+        msg: |
+          Token scopes: {{ token_check.x_oauth_scopes | default('None found') }}
+          Rate limit remaining: {{ token_check.x_ratelimit_remaining }}
+          User: {{ token_check.json.login }} 

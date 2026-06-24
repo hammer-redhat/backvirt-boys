@@ -1,0 +1,91 @@
+# Example EDA rulebook integration for disk stress testing
+# This shows how to integrate disk stress testing with Event-Driven Ansible
+
+---
+- name: Disk Stress Testing Integration
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+  rules:
+    # Manual disk stress test trigger
+    - name: Manual Disk Stress Test
+      condition: >
+        event.payload.action == "disk_stress_test" and
+        event.payload.test_type == "manual"
+      actions:
+        - run_job_template:
+            name: "VM Disk Stress Test"
+            organization: "Default"
+            set_facts: true
+            job_args:
+              extra_vars:
+                stress_disk_percentage: "{{ event.payload.percentage | default(85) }}"
+                stress_disk_path: "{{ event.payload.path | default('/tmp') }}"
+                stress_timeout: "{{ event.payload.duration | default('30m') }}"
+                target_vm: "{{ event.payload.vm_name | default('') }}"
+
+    # Automated disk stress for testing alerts
+    - name: Test Disk Monitoring Alerts
+      condition: >
+        event.payload.action == "test_disk_alerts" and
+        event.payload.environment == "testing"
+      actions:
+        - run_job_template:
+            name: "VM Disk Stress Test"
+            organization: "Default"
+            job_args:
+              extra_vars:
+                stress_disk_percentage: 95
+                stress_disk_path: "/var/log"
+                stress_timeout: "60m"
+                test_purpose: "monitoring_validation"
+
+    # Emergency disk cleanup simulation
+    - name: Simulate Disk Full Emergency
+      condition: >
+        event.payload.scenario == "emergency_disk_full" and
+        event.payload.approved == true
+      actions:
+        - run_job_template:
+            name: "VM Disk Stress Test"
+            organization: "Default"
+            job_args:
+              extra_vars:
+                stress_disk_percentage: 98
+                stress_disk_path: "{{ event.payload.filesystem | default('/') }}"
+                stress_timeout: "{{ event.payload.duration | default('15m') }}"
+                emergency_test: true
+
+# Example webhook calls to trigger these rules:
+
+# 1. Manual disk stress test:
+# curl -X POST http://eda-server:5000/webhook \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "action": "disk_stress_test",
+#     "test_type": "manual", 
+#     "percentage": 90,
+#     "path": "/tmp",
+#     "duration": "45m",
+#     "vm_name": "test-vm-01"
+#   }'
+
+# 2. Test monitoring alerts:
+# curl -X POST http://eda-server:5000/webhook \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "action": "test_disk_alerts",
+#     "environment": "testing"
+#   }'
+
+# 3. Emergency simulation:
+# curl -X POST http://eda-server:5000/webhook \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "scenario": "emergency_disk_full",
+#     "approved": true,
+#     "filesystem": "/var",
+#     "duration": "10m"
+#   }'

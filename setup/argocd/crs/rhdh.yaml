@@ -40,6 +40,14 @@ data:
       providers:
         guest:
           dangerouslyAllowOutsideDevelopment: true
+    catalog:
+      providers:
+        rhaap:
+          production:
+            schedule:
+              frequency: { minutes: 30 }
+              timeout: { minutes: 3 }
+              initialDelay: { seconds: 15 }
     ansible:
       creatorService:
         baseUrl: 127.0.0.1

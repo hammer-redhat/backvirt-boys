@@ -1,0 +1,148 @@
+---
+- name: Deploy Hypershift cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    project_namespace: clusters
+    clusterset: default
+    cluster_name: "{{ ansible_env.USER | default('test-cluster') }}"
+    etcd_storage_size: 20Gi
+    etcd_storage_class: nfs-csi
+    cluster_network_cidr: 10.132.0.0/14
+    service_network_cidr: 172.31.0.0/16
+    release_image: "quay.io/openshift-release-dev/ocp-release:4.14.0-x86_64"
+    docker_pull_secret: "{{ lookup('env', 'DOCKER_PULL_SECRET') | default('{}') }}"
+    ssh_pubkey: "{{ lookup('env', 'SSH_PUBKEY') | default('ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQA...') }}"
+    # worker node settings
+    worker_cores: 4
+    worker_memory: 16Gi
+    worker_disk: 32Gi
+    worker_replicas: 2
+
+
+
+  tasks:
+    - name: Check if cluster already exists
+      kubernetes.core.k8s_info:
+        api_version: cluster.x-k8s.io/v1beta1
+        kind: Cluster
+        name: "{{ cluster_name }}"
+        namespace: "{{ project_namespace }}-{{ cluster_name }}"
+      register: existing_cluster
+      ignore_errors: true
+
+    - name: Display cluster status if exists
+      debug:
+        msg: |
+          ================================
+          EXISTING CLUSTER FOUND
+          ================================
+          Cluster {{ cluster_name }} already exists in namespace {{ project_namespace }}-{{ cluster_name }}
+          Current Phase: {{ existing_cluster.resources[0].status.phase | default('Unknown') }}
+          Skipping deployment...
+      when: existing_cluster.resources | length > 0
+
+    - name: Display deployment start message
+      debug:
+        msg: |
+          ================================
+          DEPLOYING NEW CLUSTER
+          ================================
+          Deploying new Hypershift cluster: {{ cluster_name }}
+          Namespace: {{ project_namespace }}-{{ cluster_name }}
+          This may take several minutes...
+      when: existing_cluster.resources | length == 0
+
+    - name: Deploy Hypershift cluster
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', 'hypershift_cluster.yml.j2') | from_yaml_all }}"
+      when: existing_cluster.resources | length == 0
+
+    - name: Wait for cluster to be created
+      kubernetes.core.k8s_info:
+        api_version: cluster.x-k8s.io/v1beta1
+        kind: Cluster
+        name: "{{ cluster_name }}"
+        namespace: "{{ project_namespace }}-{{ cluster_name }}"
+        wait: true
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_timeout: 1800  # 30 minutes
+      register: cluster_info
+      when: existing_cluster.resources | length == 0
+
+    - name: Get cluster status
+      kubernetes.core.k8s_info:
+        api_version: cluster.x-k8s.io/v1beta1
+        kind: Cluster
+        name: "{{ cluster_name }}"
+        namespace: "{{ project_namespace }}-{{ cluster_name }}"
+      register: cluster_status
+
+    - name: Get cluster events using oc describe
+      kubernetes.core.k8s_exec:
+        namespace: default
+        pod: "{{ ansible_env.USER | default('default') }}-oc-client"
+        command: >
+          oc describe cluster {{ cluster_name }} -n {{ project_namespace }}-{{ cluster_name }}
+      register: cluster_events
+      ignore_errors: true
+
+    - name: Get cluster events using kubectl (fallback)
+      shell: |
+        oc describe cluster {{ cluster_name }} -n {{ project_namespace }}-{{ cluster_name }}
+      register: cluster_events_fallback
+      ignore_errors: true
+      when: cluster_events is failed
+
+    - name: Display cluster information
+      debug:
+        msg: |
+          ================================
+          HYPERSHIFT CLUSTER INFORMATION
+          ================================
+          Cluster Name: {{ cluster_name }}
+          Namespace: {{ project_namespace }}-{{ cluster_name }}
+          Phase: {{ cluster_status.resources[0].status.phase | default('Unknown') }}
+          Control Plane Ready: {{ cluster_status.resources[0].status.controlPlaneReady | default('Unknown') }}
+          Infrastructure Ready: {{ cluster_status.resources[0].status.infrastructureReady | default('Unknown') }}
+          
+          ================================
+          CLUSTER CONDITIONS
+          ================================
+          {% if cluster_status.resources[0].status.conditions is defined %}
+          {% for condition in cluster_status.resources[0].status.conditions %}
+          - Type: {{ condition.type }}
+            Status: {{ condition.status }}
+            Last Transition: {{ condition.lastTransitionTime | default('N/A') }}
+          {% endfor %}
+          {% endif %}
+
+    - name: Display cluster events
+      debug:
+        msg: |
+          ================================
+          CLUSTER EVENTS
+          ================================
+          {{ cluster_events_fallback.stdout | default(cluster_events.stdout) | default('No events available') }}
+
+    - name: Display cluster ready status
+      debug:
+        msg: |
+          ================================
+          CLUSTER DEPLOYMENT STATUS
+          ================================
+          {% if cluster_status.resources[0].status.phase == 'Provisioned' %}
+          ✅ Cluster {{ cluster_name }} is successfully provisioned!
+          {% elif cluster_status.resources[0].status.phase == 'Provisioning' %}
+          ⏳ Cluster {{ cluster_name }} is still provisioning...
+          {% else %}
+          ⚠️  Cluster {{ cluster_name }} status: {{ cluster_status.resources[0].status.phase | default('Unknown') }}
+          {% endif %}
+          
+          Access your cluster with:
+          oc get cluster {{ cluster_name }} -n {{ project_namespace }}-{{ cluster_name }}
+          oc describe cluster {{ cluster_name }} -n {{ project_namespace }}-{{ cluster_name }}

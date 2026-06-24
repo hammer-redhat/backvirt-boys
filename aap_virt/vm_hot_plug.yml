@@ -1,0 +1,35 @@
+---
+
+- name: Manage VM Hot Plugging
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    vm_collect_openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
+    vm_collect_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
+    openshift_api_key: "{{ vm_collect_openshift_api_key }}"
+    openshift_host: "{{ vm_collect_openshift_host }}"
+    openshift_verify_ssl: "{{ vm_collect_openshift_verify_ssl }}"
+  tasks:
+    - name: Collect VMs
+      ansible.builtin.include_role:
+        name: infra.openshift_virtualization_ops.vm_collect
+      vars:
+        vm_collect_vms_var: collected_vms
+        vm_collect_request_instance:
+          name: "{{ vm_name }}"
+          namespace: "{{ vm_namespace }}"
+
+    - name: Filter to target VM only
+      ansible.builtin.set_fact:
+        target_vm: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name) | list | first }}"
+
+    - name: Invoke VM Hot Plugging
+      ansible.builtin.include_role:
+        name: infra.openshift_virtualization_ops.vm_hot_plug
+      vars:
+        vm_hot_plug_vms:
+          - "{{ target_vm | combine({'compute': {'instanceType': instance_type_name | default('u1.medium')}}) }}"
+...

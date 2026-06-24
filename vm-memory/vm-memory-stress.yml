@@ -1,0 +1,24 @@
+---
+- name: Run stress-ng memory and stream stress test
+  hosts: all
+  become: true
+  vars:
+    stress_stream: 2
+    stress_vm: 2
+    stress_vm_bytes: "90%"
+    stress_timeout: "30m"
+  tasks:
+    - name: Install stress-ng if not present
+      package:
+        name: stress-ng
+        state: present
+
+    - name: Run stress-ng
+      command: >
+        stress-ng
+        --stream {{ stress_stream }}
+        --vm {{ stress_vm }}
+        --vm-bytes {{ stress_vm_bytes }}
+        --timeout {{ stress_timeout }}
+        --vm-keep 
+        --vm-hang 0

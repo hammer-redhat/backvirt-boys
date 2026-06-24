@@ -1,0 +1,10 @@
+---
+- name: Delete a VirtualMachine
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Delete a VirtualMachine
+      redhat.openshift_virtualization.kubevirt_vm:
+        name: "{{ vm_name }}"
+        namespace: "{{ vm_namespace }}"
+        state: absent

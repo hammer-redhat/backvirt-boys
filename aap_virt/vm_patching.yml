@@ -1,0 +1,46 @@
+---
+# patching for vm's on openshift
+- name: Patching vm's
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    # Default values for variables that should be provided via survey or extra_vars
+    patch_type: "{{ patch_type | default('security') }}"
+    vm_pattern: "{{ vm_pattern | default('all') }}"
+    reboot_after_patch: "{{ reboot_after_patch | default('no') }}"
+    specific_packages: "{{ specific_packages | default('') }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - patch_type is defined
+          - patch_type in ['security', 'all', 'specific']
+          - vm_pattern is defined
+          - vm_pattern != ''
+        fail_msg: "Required variables missing. Need patch_type and vm_pattern"
+
+    - name: Validate specific packages when patch_type is specific
+      ansible.builtin.assert:
+        that:
+          - specific_packages != ''
+        fail_msg: "specific_packages must be provided when patch_type is 'specific'"
+      when: patch_type == 'specific'
+
+    - name: Display patching parameters
+      ansible.builtin.debug:
+        msg:
+          - "Patch Type: {{ patch_type }}"
+          - "VM Pattern: {{ vm_pattern }}"
+          - "Reboot After Patch: {{ reboot_after_patch }}"
+          - "Specific Packages: {{ specific_packages if patch_type == 'specific' else 'N/A' }}"
+
+    - name: Calling patching role
+      ansible.builtin.include_role:
+        name: infra.openshift_virtualization_ops.vm_patching
+      vars:
+        vm_patching_type: "{{ patch_type }}"
+        vm_patching_reboot: "{{ reboot_after_patch | bool }}"
+        vm_patching_packages: "{{ specific_packages.split(',') if specific_packages else [] }}"
+...

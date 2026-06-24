@@ -1,0 +1,286 @@
+---
+- name: Create a VM on OCP-Virt.
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Create ConfigMap for Windows Sysprep
+      when: vm_os_version | lower == 'win2k19'
+      redhat.openshift.k8s:
+        state: present
+        resource_definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "sysprep-{{ vm_name }}"
+            namespace: "{{ vm_namespace }}"
+          data:
+            autounattend.xml: |
+              <?xml version="1.0" encoding="utf-8"?>
+              <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:schemas-microsoft-com:unattend">
+                <settings pass="windowsPE">
+                  <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+                    <DiskConfiguration>
+                      <Disk wcm:action="add">
+                        <CreatePartitions>
+                          <CreatePartition wcm:action="add">
+                            <Order>1</Order>
+                            <Size>500</Size>
+                            <Type>EFI</Type>
+                      </CreatePartition>
+                          <CreatePartition wcm:action="add">
+                            <Order>2</Order>
+                            <Extend>true</Extend>
+                            <Type>Primary</Type>
+                          </CreatePartition>
+                        </CreatePartitions>
+                        <ModifyPartitions>
+                          <ModifyPartition wcm:action="add">
+                            <Format>FAT32</Format>
+                            <Label>System</Label>
+                            <Order>1</Order>
+                            <PartitionID>1</PartitionID>
+                          </ModifyPartition>
+                          <ModifyPartition wcm:action="add">
+                            <Format>NTFS</Format>
+                            <Label>Windows</Label>
+                            <Order>2</Order>
+                            <PartitionID>2</PartitionID>
+                          </ModifyPartition>
+                        </ModifyPartitions>
+                        <DiskID>0</DiskID>
+                        <WillWipeDisk>true</WillWipeDisk>
+                      </Disk>
+                    </DiskConfiguration>
+                    <ImageInstall>
+                      <OSImage>
+                        <InstallFrom>
+                          <MetaData wcm:action="add">
+                            <Key>/IMAGE/NAME</Key>
+                            <Value>Windows Server 2019 SERVERSTANDARD</Value>
+                          </MetaData>
+                        </InstallFrom>
+                        <InstallTo>
+                          <DiskID>0</DiskID>
+                          <PartitionID>2</PartitionID>
+                        </InstallTo>
+                      </OSImage>
+                    </ImageInstall>
+                    <UserData>
+                      <AcceptEula>true</AcceptEula>
+                      <FullName>Administrator</FullName>
+                      <Organization>My Organization</Organization>
+                    </UserData>
+                    <EnableFirewall>false</EnableFirewall>
+                  </component>
+                  <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+                    <SetupUILanguage>
+                      <UILanguage>en-US</UILanguage>
+                    </SetupUILanguage>
+                    <InputLocale>en-US</InputLocale>
+                    <SystemLocale>en-US</SystemLocale>
+                    <UILanguage>en-US</UILanguage>
+                    <UserLocale>en-US</UserLocale>
+                  </component>
+                </settings>
+                <settings pass="offlineServicing">
+                  <component name="Microsoft-Windows-LUA-Settings" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+                    <EnableLUA>false</EnableLUA>
+                  </component>
+                </settings>
+                <settings pass="specialize">
+                  <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+                    <AutoLogon>
+                      <Password>
+                        <Value>R3dh4t1!</Value>
+                        <PlainText>true</PlainText>
+                      </Password>
+                      <Enabled>true</Enabled>
+                      <LogonCount>999</LogonCount>
+                      <Username>Administrator</Username>
+                    </AutoLogon>
+                    <OOBE>
+                      <HideEULAPage>true</HideEULAPage>
+                      <HideLocalAccountScreen>true</HideLocalAccountScreen>
+                      <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+                      <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+                      <NetworkLocation>Work</NetworkLocation>
+                      <ProtectYourPC>3</ProtectYourPC>
+                      <SkipMachineOOBE>true</SkipMachineOOBE>
+                    </OOBE>
+                    <UserAccounts>
+                      <LocalAccounts>
+                        <LocalAccount wcm:action="add">
+                          <Description>Local Administrator Account</Description>
+                          <DisplayName>Administrator</DisplayName>
+                          <Group>Administrators</Group>
+                          <Name>Administrator</Name>
+                        </LocalAccount>
+                      </LocalAccounts>
+                    </UserAccounts>
+                    <TimeZone>Eastern Standard Time</TimeZone>
+                  </component>
+                </settings>
+                <settings pass="oobeSystem">
+                  <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+                    <InputLocale>en-US</InputLocale>
+                    <SystemLocale>en-US</SystemLocale>
+                    <UILanguage>en-US</UILanguage>
+                    <UserLocale>en-US</UserLocale>
+                  </component>
+                  <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+                    <AutoLogon>
+                      <Password>
+                        <Value>R3dh4t1!</Value>
+                        <PlainText>true</PlainText>
+                      </Password>
+                      <Enabled>true</Enabled>
+                      <LogonCount>999</LogonCount>
+                      <Username>Administrator</Username>
+                    </AutoLogon>
+                    <OOBE>
+                      <HideEULAPage>true</HideEULAPage>
+                      <HideLocalAccountScreen>true</HideLocalAccountScreen>
+                      <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+                      <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+                      <NetworkLocation>Work</NetworkLocation>
+                      <ProtectYourPC>3</ProtectYourPC>
+                      <SkipMachineOOBE>true</SkipMachineOOBE>
+                    </OOBE>
+                    <UserAccounts>
+                      <LocalAccounts>
+                        <LocalAccount wcm:action="add">
+                          <Description>Local Administrator Account</Description>
+                          <DisplayName>Administrator</DisplayName>
+                          <Group>Administrators</Group>
+                          <Name>Administrator</Name>
+                        </LocalAccount>
+                      </LocalAccounts>
+                    </UserAccounts>
+                    <TimeZone>Eastern Standard Time</TimeZone>
+                  </component>
+                </settings>
+              </unattend>
+
+    - name: Create a Windows Server 2019 VM (bootable image + sysprep)
+      when: vm_os_version | lower == 'win2k19'
+      redhat.openshift_virtualization.kubevirt_vm:
+        state: "{{ vm_state }}"
+        name: "{{ vm_name }}"
+        namespace: "{{ vm_namespace }}"
+        labels:
+          app: "{{ vm_label }}"
+          vm.kubevirt.io/template: "windows2k19-server-medium"
+          vm.kubevirt.io/template.namespace: "openshift"
+          vm.kubevirt.io/template.version: "v0.34.0"
+        instancetype:
+          name: "{{ vm_instancetype }}"     # e.g. u1.medium
+        preference:
+          name: "{{ vm_preference }}"       # e.g. windows2k19
+        running: true
+        data_volume_templates:
+          # Root disk FROM a bootable image (qcow2/img) over HTTP
+          - metadata:
+              name: "{{ vm_name }}"
+              annotations:
+                cdi.kubevirt.io/storage.bind.immediate.requested: "true"
+            spec:
+              source:
+                http:
+                  url: "{{ vm_iso_url }}"   # points to bootable .qcow2 / .img
+              storage:
+                resources:
+                  requests:
+                    storage: "{{ vm_rootdisk_size | default('62Gi') }}"
+                accessModes:
+                  - ReadWriteMany
+                storageClassName: "{{ vm_iso_storageclass | default('nfs-csi') }}"
+                volumeMode: Filesystem
+        spec:
+          domain:
+            firmware:
+              bootloader:
+                efi:
+                  secureBoot: true
+            devices:
+              disks:
+                # Boot from the image-backed root disk
+                - name: rootdisk
+                  bootOrder: 1
+                  disk:
+                    bus: sata
+                # VirtIO driver ISO (containerDisk)
+                - name: windows-drivers-disk
+                  bootOrder: 2
+                  cdrom:
+                    bus: sata
+                # Sysprep unattend (ConfigMap -> CD-ROM)
+                - name: sysprep
+                  cdrom:
+                    bus: sata
+              inputs:
+                - name: tablet
+                  type: tablet
+                  bus: usb
+              interfaces:
+                - name: default
+                  model: "{{ vm_nic_model | default('e1000e') }}"
+                  masquerade: {}
+          networks:
+            - name: default
+              pod: {}
+          terminationGracePeriodSeconds: 3600
+          volumes:
+            - name: rootdisk
+              dataVolume:
+                name: "{{ vm_name }}"
+            - name: windows-drivers-disk
+              containerDisk:
+                image: "{{ vm_virtio_driver_image | default('registry.redhat.io/container-native-virtualization/virtio-win-rhel9@sha256:9f2095a457c4c33a21d78cddf4d90886bc5f90b2fcb5c9d5806a1d50b4cfcf28') }}"
+            - name: sysprep
+              sysprep:
+                configMap:
+                  name: "sysprep-{{ vm_name }}"
+        wait: false
+
+
+    - name: Create a VirtualMachine with a DataVolume template
+      ignore_errors: yes
+      redhat.openshift_virtualization.kubevirt_vm:
+        state: "{{ vm_state }}"
+        name: "{{ vm_name }}"
+        namespace: "{{ vm_namespace }}"
+        labels:
+          app: "{{ vm_label }}"
+        instancetype:
+          name: "{{ vm_instancetype }}"   #u1.medium
+        preference:
+          name: "{{ vm_preference }}"              #fedora
+        data_volume_templates:
+          - metadata:
+              name: "{{ vm_name }}"        #testdv
+            spec:
+              sourceRef:
+                kind: DataSource
+                name: "{{ vm_os_version }}"
+                namespace: openshift-virtualization-os-images
+              storage:
+                resources: {}
+        spec:
+          domain:
+            devices: {}
+          volumes:
+            - dataVolume:
+                name: "{{ vm_name }}"
+              name: datavolume
+            - cloudInitNoCloud:
+                userData: |-
+                  #cloud-config
+                  user: rhel
+                  password: openshift
+                  chpasswd:
+                    expire: false
+                  ssh_pwauth: true
+              name: cloudinitdisk
+        wait: false 
+
+        

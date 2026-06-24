@@ -1,0 +1,51 @@
+---
+# Variables for GitHub OAuth Repository Creation Playbook
+
+# GitHub OAuth Configuration
+github_username: "hammer-redhat"  # Your GitHub username
+github_token: ""  # Your GitHub Personal Access Token (OAuth token)
+# To generate a token: https://github.com/settings/tokens
+# Required scopes: repo (for private repos) or public_repo (for public repos)
+
+# Repository Configuration
+repo_name: "cursor-test-project"
+repo_path: "{{ ansible_env.HOME }}/{{ repo_name }}"
+repo_description: "Test repository created with Ansible OAuth automation"
+
+# Repository Settings
+create_private_repo: false  # Set to true for private repositories
+enable_issues: true
+enable_projects: true
+enable_wiki: true
+auto_init: false  # We initialize locally instead
+
+# Git User Configuration
+git_user_name: "{{ ansible_env.USER }}"
+git_user_email: "{{ ansible_env.USER }}@redhat.com"
+
+# Repository Setup Options
+create_initial_files: true
+initial_commit_message: "Initial commit - Repository created with Ansible OAuth"
+
+# Connection Preferences
+use_ssh_url: true  # Set to false to use HTTPS URLs instead of SSH
+
+# Branch Configuration
+git_default_branch: "main"
+create_development_branch: true
+development_branch_name: "develop"
+
+# OAuth Scopes Documentation
+# From: https://docs.github.com/enterprise/2.11/developer/apps/building-oauth-apps/understanding-scopes-for-oauth-apps/
+#
+# Required scopes for this playbook:
+# - repo: Full access to private repositories (includes public_repo)
+# - public_repo: Access to public repositories only
+# - delete_repo: Delete repositories (optional, only if you need this feature)
+#
+# Additional useful scopes:
+# - user: Read user profile data
+# - user:email: Read user email addresses
+# - admin:org: Full control of orgs and teams (if creating in organization)
+# - admin:repo_hook: Full control of repository hooks
+# - admin:public_key: Full control of user public keys 

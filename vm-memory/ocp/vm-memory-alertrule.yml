@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1beta1
+kind: AlertmanagerConfig
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"monitoring.coreos.com/v1beta1","kind":"AlertmanagerConfig","metadata":{"annotations":{},"name":"webhook-store-routing","namespace":"webhook-store"},"spec":{"receivers":[{"name":"vm-webhook","webhookConfigs":[{"sendResolved":true,"url":"http://webhook-store-webhook-store.apps.virt.na-launch.com/webhook"}]}],"route":{"groupBy":["alertname"],"matchers":[{"name":"alertname","value":"VMHighMemoryUsage"},{"name":"namespace","value":"webhook-store"}],"receiver":"vm-webhook"}}}
+  creationTimestamp: "2025-08-14T23:43:33Z"
+  generation: 4
+  name: webhook-store-routing
+  namespace: webhook-store
+  resourceVersion: "8948421"
+  uid: d79e0573-3c55-469f-ab8b-f9a1914ba794
+spec:
+  receivers:
+  - name: vm-webhook
+    webhookConfigs:
+    - sendResolved: true
+      url: http://high-vm-memory---hot-plug-vm.aap:5000
+  route:
+    groupBy:
+    - alertname
+    matchers:
+    - matchType: =
+      name: alertname
+      value: VMHighMemoryUsage
+    - matchType: =
+      name: namespace
+      value: webhook-store
+    receiver: vm-webhook

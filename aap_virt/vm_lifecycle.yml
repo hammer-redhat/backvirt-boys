@@ -1,0 +1,61 @@
+
+---
+- name: Manage VM Operations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    # Default values for variables that should be provided via survey or extra_vars
+    vm_operation: "{{ vm_operation | default('restart') }}"
+    vm_name: "{{ vm_name | default('') }}"
+    vm_namespace: "{{ vm_namespace | default('default') }}"
+    vm_label: "{{ vm_label | default('') }}"
+    # Authentication variables (following vm_hot_plug.yml pattern)
+    vm_collect_openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
+    vm_collect_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
+    openshift_api_key: "{{ vm_collect_openshift_api_key }}"
+    openshift_host: "{{ vm_collect_openshift_host }}"
+    openshift_verify_ssl: "{{ vm_collect_openshift_verify_ssl }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vm_operation is defined
+          - vm_operation in ['start', 'stop', 'restart']
+          - vm_namespace is defined
+          - vm_name != ''
+        fail_msg: "Required variables missing. Need vm_operation, vm_namespace, and vm_name"
+
+    - name: Collect VMs
+      ansible.builtin.include_role:
+        name: infra.openshift_virtualization_ops.vm_collect
+      vars:
+        vm_collect_vms_var: collected_vms
+        vm_collect_request_instance:
+          name: "{{ vm_name }}"
+          namespace: "{{ vm_namespace }}"
+
+    - name: Filter to target VM only
+      ansible.builtin.set_fact:
+        target_vm: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name) | list | first }}"
+
+    - name: Transform VM object for lifecycle role
+      ansible.builtin.set_fact:
+        transformed_vm: "{{ target_vm | combine({'vm': target_vm.response_obj, 'operation': vm_operation}) }}"
+
+    - name: Display found VM
+      ansible.builtin.debug:
+        msg: "Found VM: {{ target_vm.response_obj.metadata.name }} in namespace {{ target_vm.response_obj.metadata.namespace }}"
+
+    - name: Invoke VM Lifecycle role (VM Operations)
+      ansible.builtin.include_role:
+        name: infra.openshift_virtualization_ops.vm_lifecycle
+        tasks_from: vm_operations.yml
+      vars:
+        vm_operations_operation: "{{ vm_operation }}"
+        vm_operations_vms:
+          - "{{ transformed_vm }}"
+...

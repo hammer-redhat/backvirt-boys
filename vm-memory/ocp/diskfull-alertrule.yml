@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1beta1
+kind: AlertmanagerConfig
+metadata:
+  name: disk-full-routing
+  namespace: webhook-store
+spec:
+  receivers:
+    - name: vm-webhook
+      webhookConfigs:
+        - sendResolved: true
+          url: 
+  route:
+    groupBy:
+      - alertname
+    matchers:
+      - matchType: =
+        name: namespace
+        value: webhook-store
+    receiver: vm-webhook
+    routes:
+      - matchers:
+          - matchType: =
+            name: alertname
+            value: VMHighMemoryUsage
+        receiver: vm-webhook
+      - matchers:
+          - matchType: =
+            name: alertname
+            value: VMDiskNearlyFull
+        receiver: vm-webhook

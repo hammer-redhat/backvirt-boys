@@ -1,0 +1,305 @@
+---
+- name: Create GitHub Repository with OAuth and Initialize Locally
+  hosts: localhost
+  gather_facts: true
+  vars:
+    github_api_url: "https://api.github.com"
+    github_oauth_token: "{{ github_token | default('') }}"
+    create_private_repo: false
+    repo_description: "Repository created with Ansible and OAuth"
+    auto_init: false  # We'll initialize locally instead
+    enable_issues: true
+    enable_projects: true
+    enable_wiki: true
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.fail:
+        msg: "Missing required variable: {{ item }}"
+      when: vars[item] is undefined or vars[item] == ""
+      loop:
+        - repo_name
+        - github_oauth_token
+        - git_user_name
+        - git_user_email
+
+    - name: Display OAuth scopes information
+      ansible.builtin.debug:
+        msg:
+          - "Creating repository with OAuth authentication"
+          - "Required scopes: repo (for private repos) or public_repo (for public repos)"
+          - "Repository: {{ repo_name }}"
+          - "Private: {{ create_private_repo }}"
+
+    - name: Check if repository already exists
+      ansible.builtin.uri:
+        url: "{{ github_api_url }}/repos/{{ github_username }}/{{ repo_name }}"
+        method: GET
+        headers:
+          Authorization: "token {{ github_oauth_token }}"
+          Accept: "application/vnd.github.v3+json"
+        status_code: [200, 404]
+      register: repo_check
+      failed_when: false
+
+    - name: Create GitHub repository via OAuth
+      ansible.builtin.uri:
+        url: "{{ github_api_url }}/user/repos"
+        method: POST
+        headers:
+          Authorization: "token {{ github_oauth_token }}"
+          Accept: "application/vnd.github.v3+json"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          name: "{{ repo_name }}"
+          description: "{{ repo_description }}"
+          private: "{{ create_private_repo }}"
+          auto_init: "{{ auto_init }}"
+          has_issues: "{{ enable_issues }}"
+          has_projects: "{{ enable_projects }}"
+          has_wiki: "{{ enable_wiki }}"
+        status_code: [201]
+      register: github_repo_created
+      when: repo_check.status == 404
+
+    - name: Repository already exists
+      ansible.builtin.debug:
+        msg: "Repository {{ repo_name }} already exists. Skipping creation."
+      when: repo_check.status == 200
+
+    - name: Display created repository information
+      ansible.builtin.debug:
+        msg:
+          - "✅ Repository created successfully!"
+          - "Repository URL: {{ github_repo_created.json.html_url }}"
+          - "Clone URL (HTTPS): {{ github_repo_created.json.clone_url }}"
+          - "Clone URL (SSH): {{ github_repo_created.json.ssh_url }}"
+          - "Private: {{ github_repo_created.json.private }}"
+      when: github_repo_created is defined and github_repo_created.status == 201
+
+    - name: Set remote origin URL based on preferred method
+      ansible.builtin.set_fact:
+        remote_origin_url: "{{ github_repo_created.json.ssh_url if use_ssh_url | default(true) else github_repo_created.json.clone_url }}"
+      when: github_repo_created is defined and github_repo_created.status == 201
+
+    - name: Set remote origin URL for existing repository
+      ansible.builtin.set_fact:
+        remote_origin_url: "git@github.com:{{ github_username }}/{{ repo_name }}.git"
+      when: repo_check.status == 200 and use_ssh_url | default(true)
+
+    - name: Set remote origin URL for existing repository (HTTPS)
+      ansible.builtin.set_fact:
+        remote_origin_url: "https://github.com/{{ github_username }}/{{ repo_name }}.git"
+      when: repo_check.status == 200 and not (use_ssh_url | default(true))
+
+    # Now include the local git repository creation tasks
+    - name: Create local repository directory
+      ansible.builtin.file:
+        path: "{{ repo_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Initialize git repository
+      ansible.builtin.command: git init
+      args:
+        chdir: "{{ repo_path }}"
+        creates: "{{ repo_path }}/.git"
+      register: git_init
+
+    - name: Set git user name
+      ansible.builtin.command: git config user.name "{{ git_user_name }}"
+      args:
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: Set git user email
+      ansible.builtin.command: git config user.email "{{ git_user_email }}"
+      args:
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: Create initial files
+      when: create_initial_files | default(true) | bool
+      block:
+        - name: Create README.md
+          ansible.builtin.copy:
+            content: |
+              # {{ repo_name }}
+
+              {{ repo_description }}
+
+              This repository was created using Ansible automation with GitHub OAuth.
+
+              ## Getting Started
+
+              Add your project documentation here.
+
+              ## Contributing
+
+              1. Fork the repository
+              2. Create a feature branch
+              3. Make your changes
+              4. Submit a pull request
+
+            dest: "{{ repo_path }}/README.md"
+            mode: '0644'
+
+        - name: Create .gitignore
+          ansible.builtin.copy:
+            content: |
+              # OS generated files
+              .DS_Store
+              .DS_Store?
+              ._*
+              .Spotlight-V100
+              .Trashes
+              ehthumbs.db
+              Thumbs.db
+
+              # IDE files
+              .vscode/
+              .idea/
+              *.swp
+              *.swo
+              *~
+
+              # Logs
+              *.log
+              logs/
+
+              # Dependencies
+              node_modules/
+              venv/
+              __pycache__/
+              *.pyc
+
+              # Build artifacts
+              build/
+              dist/
+              *.egg-info/
+
+              # Secrets and tokens
+              .env
+              *.key
+              *.pem
+
+            dest: "{{ repo_path }}/.gitignore"
+            mode: '0644'
+
+    - name: Add files to git staging
+      ansible.builtin.command: git add .
+      args:
+        chdir: "{{ repo_path }}"
+      when: create_initial_files | default(true) | bool
+      changed_when: true
+
+    - name: Create initial commit
+      ansible.builtin.command: git commit -m "{{ initial_commit_message | default('Initial commit - Repository created with Ansible OAuth') }}"
+      args:
+        chdir: "{{ repo_path }}"
+      when: create_initial_files | default(true) | bool
+      register: initial_commit
+      changed_when: initial_commit.rc == 0
+      failed_when:
+        - initial_commit.rc != 0
+        - "'nothing to commit' not in initial_commit.stdout"
+
+    - name: Add remote origin
+      ansible.builtin.command: git remote add origin "{{ remote_origin_url }}"
+      args:
+        chdir: "{{ repo_path }}"
+      when: remote_origin_url is defined
+      register: add_remote
+      changed_when: add_remote.rc == 0
+      failed_when:
+        - add_remote.rc != 0
+        - "'remote origin already exists' not in add_remote.stderr"
+
+    - name: Set default branch to main
+      ansible.builtin.command: git branch -M "{{ git_default_branch | default('main') }}"
+      args:
+        chdir: "{{ repo_path }}"
+      when:
+        - remote_origin_url is defined
+        - create_initial_files | default(true) | bool
+      register: set_default_branch
+      changed_when: set_default_branch.rc == 0
+      failed_when: set_default_branch.rc != 0
+
+    - name: Push initial commit to remote repository
+      ansible.builtin.command: git push -u origin "{{ git_default_branch | default('main') }}"
+      args:
+        chdir: "{{ repo_path }}"
+      when:
+        - remote_origin_url is defined
+        - create_initial_files | default(true) | bool
+      register: git_push
+      changed_when: git_push.rc == 0
+      failed_when: git_push.rc != 0
+      ignore_errors: true
+
+    - name: Display push result
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'Successfully pushed to remote repository' if git_push.rc == 0
+          else 'Failed to push to remote repository. Error: ' + git_push.stderr | default('Unknown error') }}
+      when:
+        - remote_origin_url is defined
+        - create_initial_files | default(true) | bool
+        - git_push is defined
+
+    - name: Create development branch
+      ansible.builtin.command: git checkout -b "{{ development_branch_name | default('develop') }}"
+      args:
+        chdir: "{{ repo_path }}"
+      when:
+        - remote_origin_url is defined
+        - create_initial_files | default(true) | bool
+        - create_development_branch | default(false) | bool
+        - git_push is defined and git_push.rc == 0
+      register: create_dev_branch
+      changed_when: create_dev_branch.rc == 0
+      failed_when: create_dev_branch.rc != 0
+
+    - name: Push development branch to remote
+      ansible.builtin.command: git push -u origin "{{ development_branch_name | default('develop') }}"
+      args:
+        chdir: "{{ repo_path }}"
+      when:
+        - remote_origin_url is defined
+        - create_initial_files | default(true) | bool
+        - create_development_branch | default(false) | bool
+        - create_dev_branch is defined and create_dev_branch.rc == 0
+      register: push_dev_branch
+      changed_when: push_dev_branch.rc == 0
+      failed_when: push_dev_branch.rc != 0
+      ignore_errors: true
+
+    - name: Switch back to main branch
+      ansible.builtin.command: git checkout "{{ git_default_branch | default('main') }}"
+      args:
+        chdir: "{{ repo_path }}"
+      when:
+        - remote_origin_url is defined
+        - create_initial_files | default(true) | bool
+        - create_development_branch | default(false) | bool
+        - create_dev_branch is defined and create_dev_branch.rc == 0
+      register: switch_to_main
+      changed_when: switch_to_main.rc == 0
+      failed_when: switch_to_main.rc != 0
+
+    - name: Final repository summary
+      ansible.builtin.debug:
+        msg:
+          - "🎉 Repository setup completed successfully!"
+          - >-
+            GitHub Repository: {{ github_repo_created.json.html_url if github_repo_created is defined
+            else 'https://github.com/' + github_username + '/' + repo_name }}
+          - "Local Path: {{ repo_path }}"
+          - "Repository Name: {{ repo_name }}"
+          - "Git User: {{ git_user_name }} <{{ git_user_email }}>"
+          - "Private Repository: {{ create_private_repo }}"
+          - "Default Branch: {{ git_default_branch | default('main') }}"
+          - "Development Branch: {{ 'Created' if create_development_branch | default(false) else 'Not created' }}"
+          - "Push Status: {{ 'Success' if git_push is defined and git_push.rc == 0 else 'Failed or not attempted' }}"
+          - "Remote URL: {{ remote_origin_url | default('Not set') }}" 
