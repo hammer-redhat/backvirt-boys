@@ -268,22 +268,8 @@
         spec:
           domain:
             devices:
-              interfaces:
-                - name: default
-                  model: "{{ vm_nic_model | default('virtio') }}"
-                  {% if vm_network_name is defined and vm_network_name != '' %}
-                  bridge: {}
-                  {% else %}
-                  masquerade: {}
-                  {% endif %}
-          networks:
-            - name: default
-              {% if vm_network_name is defined and vm_network_name != '' %}
-              multus:
-                networkName: "{{ vm_network_name }}"
-              {% else %}
-              pod: {}
-              {% endif %}
+              interfaces: "{{ [{'name': 'default', 'model': vm_nic_model | default('virtio'), 'bridge': {}}] if (vm_network_name is defined and vm_network_name != '') else [{'name': 'default', 'model': vm_nic_model | default('virtio'), 'masquerade': {}}] }}"
+          networks: "{{ [{'name': 'default', 'multus': {'networkName': vm_network_name}}] if (vm_network_name is defined and vm_network_name != '') else [{'name': 'default', 'pod': {}}] }}"
           volumes:
             - dataVolume:
                 name: "{{ vm_name }}"
