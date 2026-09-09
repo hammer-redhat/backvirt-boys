@@ -1,0 +1,322 @@
+---
+- name: Scale VM Instance Type with Approval Workflow
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    # Authentication variables following AAP patterns from vm_hot_plug.yml
+    vm_collect_openshift_host: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_api_key: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY', default=Undefined) | default('', True) }}"
+    vm_collect_openshift_verify_ssl: "{{ lookup('ansible.builtin.env', 'K8S_AUTH_VERIFY_SSL', default='false') | default(false) | bool }}"
+    vm_collect_verify_ssl: "{{ vm_collect_openshift_verify_ssl }}"
+    openshift_api_key: "{{ vm_collect_openshift_api_key }}"
+    openshift_host: "{{ vm_collect_openshift_host }}"
+    openshift_verify_ssl: "{{ vm_collect_openshift_verify_ssl }}"
+    # Instance type progression mapping
+    instance_type_progression:
+      u1.nano: u1.micro
+      u1.micro: u1.small
+      u1.small: u1.medium
+      u1.medium: u1.large
+      u1.large: u1.xlarge
+      u1.xlarge: u1.2xlarge
+      u1.2xlarge: u1.4xlarge
+      u1.4xlarge: u1.8xlarge
+
+  tasks:
+    - name: Set default values for variables
+      ansible.builtin.set_fact:
+        vm_namespace_final: "{{ vm_namespace | default(namespace) | default('default') }}"
+        vm_name_final: "{{ vm_name | default('') }}"
+        new_instance_type_final: "{{ new_instance_type | default('') }}"
+
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vm_name_final != ''
+          - vm_namespace_final != ''
+        fail_msg: "Required variables missing: vm_namespace and vm_name must be provided"
+
+    - name: Display scaling operation details
+      ansible.builtin.debug:
+        msg:
+          - "VM Scaling Operation Details:"
+          - "VM Name: {{ vm_name_final }}"
+          - "VM Namespace: {{ vm_namespace_final }}"
+          - "Target Instance Type: {{ new_instance_type_final if new_instance_type_final else 'Auto-detect next size' }}"
+
+    # Step 1: Get current VM information
+    - name: Debug authentication variables
+      ansible.builtin.debug:
+        msg:
+          - "OpenShift Host: {{ openshift_host }}"
+          - "API Key defined: {{ 'Yes' if openshift_api_key else 'No' }}"
+          - "Verify SSL: {{ openshift_verify_ssl }}"
+          - "Target VM: {{ vm_name_final }}"
+          - "Target Namespace: {{ vm_namespace_final }}"
+
+    - name: Collect current VM information
+      ansible.builtin.include_role:
+        name: infra.openshift_virtualization_ops.vm_collect
+      vars:
+        vm_collect_vms_var: collected_vms
+        vm_collect_request_instance:
+          name: "{{ vm_name_final }}"
+          namespace: "{{ vm_namespace_final }}"
+
+    - name: Check if VM collection succeeded
+      ansible.builtin.fail:
+        msg: |
+          VM collection failed. The 'collected_vms' variable was not defined.
+          This may indicate:
+          1. Authentication failure with OpenShift cluster
+          2. Network connectivity issues
+          3. Missing permissions for the service account
+          4. Incorrect OpenShift host URL
+      when: collected_vms is not defined
+
+    - name: Debug collected VMs
+      ansible.builtin.debug:
+        msg:
+          - "Collected VMs count: {{ collected_vms | length }}"
+          - "Looking for VM: {{ vm_name_final }} in namespace: {{ vm_namespace_final }}"
+          - "Available VMs: {{ collected_vms | map(attribute='response_obj.metadata.name') | list if collected_vms else 'None found' }}"
+
+    - name: Filter to target VM
+      ansible.builtin.set_fact:
+        target_vm_list: "{{ collected_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list }}"
+
+    - name: Search for VM in all accessible namespaces (when not found in specified namespace)
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        host: "{{ openshift_host }}"
+        api_key: "{{ openshift_api_key }}"
+        verify_ssl: "{{ openshift_verify_ssl }}"
+      register: all_vms_search
+      when: target_vm_list | length == 0
+
+    - name: Find VM in other namespaces
+      ansible.builtin.set_fact:
+        vm_found_in_namespaces: "{{ all_vms_search.resources | selectattr('metadata.name', 'equalto', vm_name_final) | map(attribute='metadata.namespace') | list }}"
+      when: target_vm_list | length == 0
+
+    - name: Debug all accessible VMs (when VM not found)
+      ansible.builtin.debug:
+        msg:
+          - "=== VM DISCOVERY DEBUG ==="
+          - "Searched for VM: {{ vm_name_final }}"
+          - "In namespace: {{ vm_namespace_final }}"
+          - "Total accessible VMs found: {{ all_vms_search.resources | length if all_vms_search.resources is defined else 0 }}"
+          - "All accessible VMs:"
+      when: target_vm_list | length == 0
+
+    - name: Display each accessible VM with its namespace
+      ansible.builtin.debug:
+        msg: "  - {{ item.metadata.name }} (namespace: {{ item.metadata.namespace }})"
+      loop: "{{ all_vms_search.resources | default([]) }}"
+      when: 
+        - target_vm_list | length == 0
+        - all_vms_search.resources is defined
+
+    - name: Check if VM was found
+      ansible.builtin.fail:
+        msg: |
+          VM '{{ vm_name_final }}' not found in namespace '{{ vm_namespace_final }}'.
+          Available VMs in specified namespace ({{ vm_namespace_final }}): {{ collected_vms | map(attribute='response_obj.metadata.name') | list | join(', ') if collected_vms else 'None' }}
+          
+          {% if vm_found_in_namespaces is defined and vm_found_in_namespaces | length > 0 %}
+          ✅ FOUND: VM '{{ vm_name_final }}' exists in namespace(s): {{ vm_found_in_namespaces | join(', ') }}
+          
+          🔧 SOLUTION: Update your job template variables:
+             - vm_namespace: {{ vm_found_in_namespaces | first }}
+             - vm_name: {{ vm_name_final }}
+          {% else %}
+          ❌ VM '{{ vm_name_final }}' not found in any accessible namespace.
+          {% endif %}
+          
+          Please verify:
+          1. VM name is correct: {{ vm_name_final }}
+          2. VM namespace is correct: {{ vm_namespace_final }}
+          3. VM exists and is accessible
+          4. Authentication credentials have proper permissions
+      when: target_vm_list | length == 0
+
+    - name: Extract target VM
+      ansible.builtin.set_fact:
+        target_vm: "{{ target_vm_list | first }}"
+
+    - name: Extract current instance type from VM
+      ansible.builtin.set_fact:
+        current_instance_type: "{{ target_vm.response_obj.spec.instancetype.name | default('unknown') }}"
+
+    - name: Display current VM instance type
+      ansible.builtin.debug:
+        msg:
+          - "Current VM Instance Type: {{ current_instance_type }}"
+          - "VM Status: {{ target_vm.response_obj.status.printableStatus | default('unknown') }}"
+
+    # Step 2: Get available VirtualMachineClusterInstancetype resources
+    - name: Get VirtualMachineClusterInstancetype resources from OpenShift
+      kubernetes.core.k8s_info:
+        api_version: instancetype.kubevirt.io/v1beta1
+        kind: VirtualMachineClusterInstancetype
+        host: "{{ openshift_host }}"
+        api_key: "{{ openshift_api_key }}"
+        verify_ssl: "{{ openshift_verify_ssl }}"
+      register: cluster_instance_types
+
+    - name: Display available instance types
+      ansible.builtin.debug:
+        msg: "Available Instance Types: {{ cluster_instance_types.resources | map(attribute='metadata.name') | list | sort }}"
+
+    # Step 3: Determine next instance size
+    - name: Determine next instance type if not provided
+      ansible.builtin.set_fact:
+        calculated_next_instance_type: "{{ instance_type_progression[current_instance_type] | default('') }}"
+      when: new_instance_type_final == ''
+
+    - name: Set final instance type for scaling
+      ansible.builtin.set_fact:
+        final_instance_type: "{{ new_instance_type_final if new_instance_type_final != '' else calculated_next_instance_type }}"
+
+    - name: Validate that next instance type exists
+      ansible.builtin.assert:
+        that:
+          - final_instance_type != ''
+          - final_instance_type in (cluster_instance_types.resources | map(attribute='metadata.name') | list)
+        fail_msg: |
+          Cannot determine next instance type. 
+          Current: {{ current_instance_type }}
+          Requested: {{ final_instance_type }}
+          Available: {{ cluster_instance_types.resources | map(attribute='metadata.name') | list | sort }}
+
+    - name: Display scaling plan
+      ansible.builtin.debug:
+        msg:
+          - "VM Scaling Plan:"
+          - "VM: {{ vm_name_final }} in namespace {{ vm_namespace_final }}"
+          - "Current Instance Type: {{ current_instance_type }}"
+          - "Target Instance Type: {{ final_instance_type }}"
+          - "Scaling Direction: {{ 'Upgrade' if final_instance_type != current_instance_type else 'No Change' }}"
+
+    # Step 4: Display scaling plan (approval handled by AAP workflow)
+    - name: Display VM scaling plan
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "================== VM SCALING PLAN =================="
+          - ""
+          - "VM Details:"
+          - "  Name: {{ vm_name_final }}"
+          - "  Namespace: {{ vm_namespace_final }}"
+          - "  Current Status: {{ target_vm.response_obj.status.printableStatus | default('unknown') }}"
+          - ""
+          - "Scaling Details:"
+          - "  Current Instance Type: {{ current_instance_type }}"
+          - "  Target Instance Type: {{ final_instance_type }}"
+          - ""
+          - "This operation will:"
+          - "  1. Scale the VM instance type from {{ current_instance_type }} to {{ final_instance_type }}"
+          - "  2. May cause temporary VM interruption"
+          - "  3. Resource allocation will be updated immediately"
+          - ""
+          - "Note: For approval workflow, use the AAP Workflow Template instead."
+          - "======================================================"
+      when: final_instance_type != current_instance_type
+
+    - name: Skip scaling if no change needed
+      ansible.builtin.debug:
+        msg: "VM {{ vm_name_final }} is already at the target instance type {{ current_instance_type }}. No scaling needed."
+      when: final_instance_type == current_instance_type
+
+    # Step 5: Perform the actual VM scaling using hot plug pattern
+    - name: Execute VM instance type scaling
+      block:
+        - name: Display scaling operation start
+          ansible.builtin.debug:
+            msg: "Starting VM scaling operation: {{ vm_name_final }} from {{ current_instance_type }} to {{ final_instance_type }}"
+
+        - name: Invoke VM Hot Plugging for instance type change
+          ansible.builtin.include_role:
+            name: infra.openshift_virtualization_ops.vm_hot_plug
+          vars:
+            vm_hot_plug_vms:
+              - "{{ target_vm | combine({'compute': {'instanceType': final_instance_type}}) }}"
+
+        - name: Wait for scaling operation to complete
+          ansible.builtin.pause:
+            seconds: 10
+            prompt: "Waiting for scaling operation to take effect..."
+
+        - name: Verify scaling operation
+          ansible.builtin.include_role:
+            name: infra.openshift_virtualization_ops.vm_collect
+          vars:
+            vm_collect_vms_var: updated_vms
+            vm_collect_request_instance:
+              name: "{{ vm_name_final }}"
+              namespace: "{{ vm_namespace_final }}"
+
+        - name: Filter updated VMs
+          ansible.builtin.set_fact:
+            updated_vm_list: "{{ updated_vms | selectattr('response_obj.metadata.name', 'equalto', vm_name_final) | list }}"
+
+        - name: Check if updated VM was found
+          ansible.builtin.fail:
+            msg: |
+              Failed to find updated VM '{{ vm_name_final }}' after scaling operation.
+              This may indicate the scaling operation did not complete successfully.
+              Available VMs: {{ updated_vms | map(attribute='response_obj.metadata.name') | list | join(', ') if updated_vms else 'None' }}
+          when: updated_vm_list | length == 0
+
+        - name: Extract updated VM information
+          ansible.builtin.set_fact:
+            updated_vm: "{{ updated_vm_list | first }}"
+            updated_instance_type: "{{ updated_vm_list | first | json_query('response_obj.spec.instancetype.name') }}"
+
+        - name: Display scaling operation result
+          ansible.builtin.debug:
+            msg:
+              - "VM Scaling Operation Completed!"
+              - "VM: {{ vm_name_final }}"
+              - "Previous Instance Type: {{ current_instance_type }}"
+              - "New Instance Type: {{ updated_instance_type }}"
+              - "VM Status: {{ updated_vm.response_obj.status.printableStatus | default('unknown') }}"
+              - "Operation: {{ 'SUCCESS' if updated_instance_type == final_instance_type else 'VERIFICATION_PENDING' }}"
+
+        - name: Verify scaling success
+          ansible.builtin.assert:
+            that:
+              - updated_instance_type == final_instance_type
+            success_msg: "VM {{ vm_name_final }} successfully scaled to {{ final_instance_type }}"
+            fail_msg: "VM scaling verification failed. Expected: {{ final_instance_type }}, Actual: {{ updated_instance_type }}"
+
+      rescue:
+        - name: Handle scaling operation failure
+          ansible.builtin.debug:
+            msg:
+              - "VM Scaling Operation Failed!"
+              - "VM: {{ vm_name_final }}"
+              - "Target Instance Type: {{ final_instance_type }}"
+              - "Error: {{ ansible_failed_result.msg | default('Unknown error occurred') }}"
+
+        - name: Fail with detailed error information
+          ansible.builtin.fail:
+            msg: |
+              VM scaling operation failed for {{ vm_name_final }}.
+              Please check the VM status and OpenShift cluster resources.
+              Error details: {{ ansible_failed_result.msg | default('Unknown error occurred') }}
+
+      when: final_instance_type != current_instance_type
+
+    # Final summary
+    - name: Display final operation summary
+      ansible.builtin.debug:
+        msg:
+          - "========== VM SCALING OPERATION SUMMARY =========="
+          - "VM Name: {{ vm_name_final }}"
+          - "Namespace: {{ vm_namespace_final }}"
+          - "Operation: {{ 'Completed Successfully' if final_instance_type != current_instance_type else 'No Action Required' }}"
+          - "Instance Type: {{ current_instance_type }} → {{ final_instance_type if final_instance_type != current_instance_type else current_instance_type }}"
+          - "Timestamp: {{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"

@@ -1,0 +1,56 @@
+---
+- name: Run a webhook listener service
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        port: 5000
+
+  rules:
+    # Health check rule
+    - name: Webhook event
+      condition: event.payload.ping == "pong"
+      action:
+        debug:
+          msg: "Webhook triggered!"
+
+    # Shutdown handler
+    - name: Shutdown
+      condition: event.payload.shutdown is defined
+      action:
+        shutdown:
+
+    # VM High Memory Alert handler - WITH APPROVAL WORKFLOW
+    - name: Trigger VM Scaling Workflow with Approval
+      condition: >
+        event.payload.status == "firing" and
+        event.payload.commonLabels.alertname == "VMHighMemoryUsage"
+      actions:
+        - run_job_template:
+            name: "Trigger VM Scaling Workflow"  # Job Template that triggers workflow
+            organization: "Default"             # Change if needed
+            set_facts: true
+            job_args:
+              extra_vars:
+                vm_name: "{{ event.payload.commonLabels.name }}"
+                namespace: "{{ event.payload.commonLabels.namespace }}"
+                severity: "{{ event.payload.commonLabels.severity }}"
+                description: "{{ event.payload.commonAnnotations.description }}"
+                workflow_name: "VM Scaling with Approval"
+
+    # VM High Memory Alert handler - DIRECT (NO APPROVAL) 
+    # Uncomment this rule and comment the above for emergency/direct scaling
+    # - name: Trigger Scale VM Memory job (Direct)
+    #   condition: >
+    #     event.payload.status == "firing" and
+    #     event.payload.commonLabels.alertname == "VMHighMemoryUsage"
+    #   actions:
+    #     - run_job_template:
+    #         name: "VM Scale Complete"     # Direct job template (no approval)
+    #         organization: "Default"      # Change if needed
+    #         set_facts: true
+    #         job_args:
+    #           extra_vars:
+    #             vm_name: "{{ event.payload.commonLabels.name }}"
+    #             namespace: "{{ event.payload.commonLabels.namespace }}"
+    #             severity: "{{ event.payload.commonLabels.severity }}"
+    #             description: "{{ event.payload.commonAnnotations.description }}"

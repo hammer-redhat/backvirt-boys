@@ -244,7 +244,7 @@
 
 
     - name: Create a VirtualMachine with a DataVolume template
-      when: vm_os_version | lower != 'win2k19'
+      ignore_errors: yes
       redhat.openshift_virtualization.kubevirt_vm:
         state: "{{ vm_state }}"
         name: "{{ vm_name }}"
@@ -274,14 +274,8 @@
         spec:
           domain:
             devices:
-              interfaces:
-                - name: default
-                  model: virtio
-                  bridge: {}
-          networks:
-            - name: default
-              multus:
-                networkName: "{{ vm_network_name }}"
+              interfaces: "{{ [{'name': 'default', 'model': vm_nic_model | default('virtio'), 'bridge': {}}] if (vm_network_name is defined and vm_network_name != '') else [{'name': 'default', 'model': vm_nic_model | default('virtio'), 'masquerade': {}}] }}"
+          networks: "{{ [{'name': 'default', 'multus': {'networkName': vm_network_name}}] if (vm_network_name is defined and vm_network_name != '') else [{'name': 'default', 'pod': {}}] }}"
           volumes:
             - dataVolume:
                 name: "{{ vm_name }}"
@@ -295,28 +289,6 @@
                     expire: false
                   ssh_pwauth: true
               name: cloudinitdisk
-        wait: true
-        wait_timeout: 600
+        wait: false 
 
-    - name: Get VirtualMachineInstance info to retrieve IP
-      kubernetes.core.k8s_info:
-        api_version: kubevirt.io/v1
-        kind: VirtualMachineInstance
-        name: "{{ vm_name }}"
-        namespace: "{{ vm_namespace }}"
-      register: vmi_info
-      until:
-        - vmi_info.resources | length > 0
-        - vmi_info.resources[0].status.interfaces is defined
-        - vmi_info.resources[0].status.interfaces | length > 0
-      retries: 30
-      delay: 10
-
-    - name: Wait for SSH to be available
-      ansible.builtin.wait_for:
-        host: "{{ vmi_info.resources[0].status.interfaces[0].ipAddress }}"
-        port: 22
-        delay: 10
-        timeout: 300
-        state: started
         

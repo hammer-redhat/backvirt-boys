@@ -1,0 +1,155 @@
+---
+- name: Run disk stress test by filling filesystem
+  hosts: all
+  become: true
+  vars:
+    stress_disk_percentage: 90
+    stress_disk_path: "/tmp"
+    stress_file_name: "stress_disk_test.img"
+    stress_timeout: "30m"
+    cleanup_on_signal: true
+  
+  tasks:
+    - name: Set full path for stress file
+      set_fact:
+        stress_file_path: "{{ stress_disk_path }}/{{ stress_file_name }}"
+
+    - name: Get filesystem information for target path
+      shell: df -B1 {{ stress_disk_path }} | tail -1
+      register: df_output
+      changed_when: false
+
+    - name: Parse filesystem information
+      set_fact:
+        fs_total: "{{ df_output.stdout.split()[1] | int }}"
+        fs_used: "{{ df_output.stdout.split()[2] | int }}"
+        fs_available: "{{ df_output.stdout.split()[3] | int }}"
+
+    - name: Calculate target file size (90% of total filesystem)
+      set_fact:
+        target_size: "{{ ((fs_total | int) * (stress_disk_percentage | int) / 100) | int }}"
+        current_usage_size: "{{ fs_used | int }}"
+        
+    - name: Calculate actual file size needed
+      set_fact:
+        file_size_needed: "{{ (target_size | int) - (current_usage_size | int) }}"
+
+    - name: Display disk stress information
+      debug:
+        msg:
+          - "=================== DISK STRESS TEST PLAN ==================="
+          - "Target Path: {{ stress_disk_path }}"
+          - "Stress File: {{ stress_file_path }}"
+          - "Filesystem Total: {{ (fs_total | int / (1024*1024*1024)) | round(2) }} GB"
+          - "Currently Used: {{ (fs_used | int / (1024*1024*1024)) | round(2) }} GB"
+          - "Available Space: {{ (fs_available | int / (1024*1024*1024)) | round(2) }} GB"
+          - "Target Usage: {{ stress_disk_percentage }}% ({{ (target_size | int / (1024*1024*1024)) | round(2) }} GB)"
+          - "File Size to Create: {{ (file_size_needed | int / (1024*1024*1024)) | round(2) }} GB"
+          - "Test Duration: {{ stress_timeout }}"
+          - "=============================================================="
+
+    - name: Fail if not enough space available
+      fail:
+        msg: "Not enough space available. Need {{ (file_size_needed | int / (1024*1024*1024)) | round(2) }} GB but only {{ (fs_available | int / (1024*1024*1024)) | round(2) }} GB available."
+      when: file_size_needed | int > fs_available | int
+
+    - name: Fail if file size is negative or zero
+      fail:
+        msg: "Calculated file size is {{ (file_size_needed | int / (1024*1024*1024)) | round(2) }} GB. Filesystem may already be {{ stress_disk_percentage }}% full or target percentage is too low."
+      when: file_size_needed | int <= 0
+
+    - name: Create disk stress test file using fallocate
+      block:
+        - name: Remove existing stress file if present
+          file:
+            path: "{{ stress_file_path }}"
+            state: absent
+
+        - name: Create large file with fallocate
+          command: fallocate -l {{ file_size_needed }} {{ stress_file_path }}
+          register: fallocate_result
+
+        - name: Verify file creation
+          stat:
+            path: "{{ stress_file_path }}"
+          register: stress_file_stat
+
+        - name: Display file creation success
+          debug:
+            msg:
+              - "✅ Disk stress file created successfully!"
+              - "File: {{ stress_file_path }}"
+              - "Size: {{ (stress_file_stat.stat.size / (1024*1024*1024)) | round(2) }} GB"
+              - "Disk stress test is now active..."
+
+        - name: Wait for specified timeout duration
+          pause:
+            seconds: "{{ (stress_timeout | regex_replace('m$', '') | int) * 60 if 'm' in stress_timeout else stress_timeout | int }}"
+            prompt: |
+              
+              🔥 DISK STRESS TEST ACTIVE 🔥
+              
+              The filesystem {{ stress_disk_path }} is now {{ stress_disk_percentage }}% full.
+              Stress file: {{ stress_file_path }}
+              
+              The test will automatically cleanup after {{ stress_timeout }}.
+              
+              To stop early: Cancel this job (Ctrl+C) and cleanup will happen automatically.
+              
+              Press Ctrl+C to cancel or wait for timeout...
+
+      rescue:
+        - name: Handle cancellation or error - cleanup stress file
+          debug:
+            msg: "⚠️  Disk stress test interrupted or failed. Cleaning up..."
+
+        - name: Remove stress file on cancellation/error
+          file:
+            path: "{{ stress_file_path }}"
+            state: absent
+          ignore_errors: true
+
+        - name: Verify cleanup completed
+          stat:
+            path: "{{ stress_file_path }}"
+          register: cleanup_check
+
+        - name: Display cleanup status
+          debug:
+            msg: "🧹 Cleanup completed. Stress file removed: {{ not cleanup_check.stat.exists }}"
+
+        - name: Re-raise the error if it wasn't a cancellation
+          fail:
+            msg: "Disk stress test failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+          when: ansible_failed_result is defined and 'interrupt' not in (ansible_failed_result.msg | default(''))
+
+      always:
+        - name: Final cleanup - ensure stress file is removed
+          file:
+            path: "{{ stress_file_path }}"
+            state: absent
+          ignore_errors: true
+
+        - name: Get final filesystem usage
+          shell: df -h {{ stress_disk_path }} | tail -1
+          register: final_df
+          ignore_errors: true
+          changed_when: false
+
+        - name: Display final disk usage
+          debug:
+            msg:
+              - "=================== DISK STRESS TEST COMPLETE ==================="
+              - "Final filesystem status:"
+              - "{{ final_df.stdout if final_df is defined and final_df.stdout is defined else 'Unable to get filesystem status' }}"
+              - "Stress file removed: {{ stress_file_path }}"
+              - "=================================================================="
+          when: final_df is defined
+
+    - name: Verify stress test completion
+      debug:
+        msg: 
+          - "✅ Disk stress test completed successfully!"
+          - "Duration: {{ stress_timeout }}"
+          - "Target filled: {{ stress_disk_percentage }}% of {{ stress_disk_path }}"
+          - "All temporary files cleaned up."

@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    role: alert-rules
+  name: vm-high-memory-usage
+  namespace: webhook-store
+spec:
+  groups:
+  - name: VMAlerts
+    rules:
+    - alert: VMHighMemoryUsage
+      annotations:
+        description: VM {{ $labels.name }} in namespace {{ $labels.namespace }} is
+          using more than 80% of its available memory.
+        summary: High memory usage on VM
+      expr: |
+         ( 
+         kubevirt_vmi_memory_used_bytes{ namespace="webhook-store",
+                                           name="rhel-8-brown-stork-74"} 
+                                           / 
+          kubevirt_vmi_memory_available_bytes{ namespace="webhook-store",
+                                               name="rhel-8-brown-stork-74"} 
+          ) * 100 > 75
+      for: 10s
+      labels:
+        severity: critical
