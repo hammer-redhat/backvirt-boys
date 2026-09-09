@@ -297,4 +297,26 @@
               name: cloudinitdisk
         wait: true
         wait_timeout: 600
+
+    - name: Get VirtualMachineInstance info to retrieve IP
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachineInstance
+        name: "{{ vm_name }}"
+        namespace: "{{ vm_namespace }}"
+      register: vmi_info
+      until:
+        - vmi_info.resources | length > 0
+        - vmi_info.resources[0].status.interfaces is defined
+        - vmi_info.resources[0].status.interfaces | length > 0
+      retries: 30
+      delay: 10
+
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for:
+        host: "{{ vmi_info.resources[0].status.interfaces[0].ipAddress }}"
+        port: 22
+        delay: 10
+        timeout: 300
+        state: started
         
