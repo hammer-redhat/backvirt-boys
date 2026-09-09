@@ -252,19 +252,25 @@
         labels:
           app: "{{ vm_label }}"
         instancetype:
-          name: "{{ vm_instancetype }}"   #u1.medium
+          name: "{{ vm_instancetype }}"
         preference:
-          name: "{{ vm_preference }}"              #fedora
+          name: "{{ vm_preference }}"
         data_volume_templates:
           - metadata:
-              name: "{{ vm_name }}"        #testdv
+              name: "{{ vm_name }}"
             spec:
               sourceRef:
                 kind: DataSource
                 name: "{{ vm_os_version }}"
                 namespace: openshift-virtualization-os-images
               storage:
-                resources: {}
+                resources:
+                  requests:
+                    storage: "{{ vm_rootdisk_size | default('30Gi') }}"
+                storageClassName: "{{ vm_storageclass | default('nfs-csi') }}"
+                accessModes:
+                  - ReadWriteMany
+                volumeMode: Filesystem
         spec:
           domain:
             devices:

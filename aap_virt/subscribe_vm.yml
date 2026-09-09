@@ -1,0 +1,19 @@
+---
+- name: subscribe a vm to RHSM.
+  hosts: all
+  become: true
+  tasks:
+    - name: Register RHEL with Org ID and AK and auto-subscribe to available content.
+      redhat.rhel_system_roles.redhat_subscription:
+        state: present
+        org_id: "{{ org_id }}"
+        activationkey: "{{ activationkey }}"
+
+    - name: Install Red Hat Insights-client.
+      ansible.builtin.dnf: 
+        name: insights-client
+        state: present
+
+    - name: Register Red Hat Insights-client with tags. 
+      ansible.builtin.command: 
+        cmd: insights-client --register --group="{{ insights_group }}"
