@@ -270,7 +270,7 @@
                 storageClassName: "{{ vm_storageclass | default('truenas-iscsi-block') }}"
                 accessModes:
                   - ReadWriteMany
-                volumeMode: Filesystem
+                volumeMode: Block
         spec:
           domain:
             devices:
