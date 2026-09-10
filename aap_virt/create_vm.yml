@@ -267,7 +267,7 @@
                 resources:
                   requests:
                     storage: "{{ vm_rootdisk_size | default('30Gi') }}"
-                storageClassName: "{{ vm_storageclass | default('iscsi-block') }}"
+                storageClassName: "{{ vm_storageclass | default('truenas-iscsi-block') }}"
                 accessModes:
                   - ReadWriteMany
                 volumeMode: Filesystem
